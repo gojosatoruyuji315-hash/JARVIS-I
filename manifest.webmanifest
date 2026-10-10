@@ -1,0 +1,18 @@
+{
+  "name": "JARVIS-X — AI Operating System",
+  "short_name": "JARVIS-X",
+  "description": "A futuristic browser-based AI assistant and productivity OS.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#03070d",
+  "theme_color": "#03070d",
+  "icons": [
+    { "src": "assets/icons/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Assistant", "url": "./index.html#assistant" },
+    { "name": "Tasks", "url": "./index.html#productivity" },
+    { "name": "Study", "url": "./index.html#study" }
+  ]
+}

@@ -1,0 +1,99 @@
+/* ==========================================================================
+   HUD: home layout, holographic core, boot / shutdown / lock sequences
+   ========================================================================== */
+
+.home {
+  height: 100%; overflow-y: auto; overflow-x: hidden;
+  padding-block: 18px 28px; padding-inline: 18px;
+  display: grid; gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 460px) minmax(0, 1fr);
+  grid-template-areas: "left core right" "bottom bottom bottom";
+  align-items: start;
+}
+.home-col { display: grid; gap: 14px; min-width: 0; }
+.home-col.left { grid-area: left; }
+.home-col.right { grid-area: right; }
+.home-core { grid-area: core; display: grid; justify-items: center; gap: 14px; min-width: 0; position: sticky; top: 0; }
+.home-bottom { grid-area: bottom; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+@media (max-width: 1180px) {
+  .home { grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-areas: "core core" "left right" "bottom bottom"; }
+  .home-core { position: static; }
+}
+@media (max-width: 760px) {
+  .home { grid-template-columns: minmax(0,1fr); grid-template-areas: "core" "left" "right" "bottom"; padding-inline: 16px; }
+}
+
+/* ---- Holographic core -------------------------------------------------- */
+.hud { position: relative; width: min(420px, 86vw); aspect-ratio: 1; max-width: 100%; cursor: pointer; user-select: none; }
+.hud svg { width: 100%; height: 100%; overflow: visible; }
+.hud .ring { transform-box: fill-box; transform-origin: center; fill: none; stroke: var(--accent); }
+.hud .r1 { stroke-width: 1.2; opacity: .55; animation: spin calc(48s / max(var(--speed), .01)) linear infinite; }
+.hud .r2 { stroke-width: 6; opacity: .28; stroke-dasharray: 2 9; animation: spin calc(30s / max(var(--speed), .01)) linear infinite reverse; }
+.hud .r3 { stroke-width: 2; opacity: .8; stroke-dasharray: 120 40 20 40; animation: spin calc(18s / max(var(--speed), .01)) linear infinite; stroke: var(--accent-2); }
+.hud .r4 { stroke-width: 1; opacity: .5; stroke-dasharray: 4 4; animation: spin calc(60s / max(var(--speed), .01)) linear infinite reverse; }
+.hud .r5 { stroke-width: 3; opacity: .9; stroke-dasharray: 60 300; animation: spin calc(6s / max(var(--speed), .01)) linear infinite; filter: drop-shadow(0 0 6px var(--accent)); }
+.hud .ticks line { stroke: var(--accent); opacity: .35; }
+.hud .level { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset .12s linear; filter: drop-shadow(0 0 8px var(--accent)); }
+.hud .core-glow { fill: url(#coreGrad); animation: breathe calc(4s / max(var(--speed), .01)) ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.hud .core-label { fill: var(--fg); font-family: var(--font-display); font-weight: 700; letter-spacing: .2em; font-size: 26px; text-anchor: middle; }
+.hud .core-state { fill: var(--accent); font-family: var(--font-mono); font-size: 10px; letter-spacing: .3em; text-anchor: middle; }
+.hud.listening .r5 { animation-duration: 1.4s; stroke: var(--ok); }
+.hud.listening .core-state { fill: var(--ok); }
+.hud.thinking .r3 { animation-duration: 2.5s; }
+.hud.thinking .r5 { animation-duration: 1s; }
+.hud.speaking .core-glow { animation-duration: .7s; }
+.hud:hover .r1 { opacity: .9; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes breathe { 0%,100% { transform: scale(1); opacity: .85; } 50% { transform: scale(1.06); opacity: 1; } }
+
+/* Command bar under the core */
+.cmdbar {
+  width: min(460px, 100%); display: flex; gap: 8px; align-items: center;
+  padding: 6px 6px 6px 14px; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--line-hi); backdrop-filter: blur(var(--blur));
+  box-shadow: var(--glow-soft);
+}
+.cmdbar input { flex: 1; min-width: 0; background: none; border: 0; outline: none; padding: 8px 0; }
+.cmdbar input::placeholder { color: var(--fg-mute); }
+.reply-card { width: min(460px, 100%); max-height: 220px; overflow: auto; font-size: var(--fs-sm); }
+.reply-card .q { color: var(--fg-mute); font-size: var(--fs-xs); font-family: var(--font-mono); margin-bottom: 4px; }
+
+/* ---- Boot sequence ----------------------------------------------------- */
+.boot {
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: var(--bg);
+  transition: opacity .6s var(--ease), visibility .6s;
+}
+.boot.done { opacity: 0; visibility: hidden; }
+.boot-inner { display: grid; justify-items: center; gap: 20px; width: min(520px, 90vw); }
+.boot-rings { width: 180px; height: 180px; }
+.boot-rings circle { fill: none; stroke: var(--accent); transform-origin: 90px 90px; }
+.boot-rings .b1 { stroke-dasharray: 565; stroke-dashoffset: 565; animation: draw 1.4s var(--ease) forwards, spin 6s linear infinite; stroke-width: 2; }
+.boot-rings .b2 { stroke-dasharray: 8 6; opacity: 0; animation: fadein .5s .5s forwards, spin 4s linear infinite reverse; stroke-width: 5; stroke: var(--accent-2); }
+.boot-rings .b3 { stroke-dasharray: 80 200; animation: spin 1.2s linear infinite; stroke-width: 3; filter: drop-shadow(0 0 6px var(--accent)); }
+.boot-title { font-family: var(--font-display); letter-spacing: .5em; font-size: 26px; font-weight: 700; padding-left: .5em; }
+.boot-title.master { background: linear-gradient(90deg, var(--gold), var(--fg), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.boot-log { width: 100%; height: 110px; overflow: hidden; font-family: var(--font-mono); font-size: 11px; color: var(--fg-dim); display: flex; flex-direction: column; justify-content: flex-end; }
+.boot-log div::before { content: "› "; color: var(--accent); }
+.boot-bar { width: 100%; height: 2px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.boot-bar i { display: block; height: 100%; width: 0; background: var(--accent); box-shadow: var(--glow); transition: width .25s; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes fadein { to { opacity: 1; } }
+
+/* ---- Shutdown ---------------------------------------------------------- */
+.shutdown { position: fixed; inset: 0; z-index: 1001; background: #000; display: grid; place-items: center; animation: fadein .3s forwards; opacity: 0; }
+.shutdown .line { width: 100vw; height: 2px; background: var(--accent); box-shadow: 0 0 30px var(--accent); animation: crt 0.9s var(--ease) forwards; }
+.shutdown .off { position: absolute; display: grid; justify-items: center; gap: 14px; opacity: 0; animation: fadein .6s 1.1s forwards; color: var(--fg-dim); font-family: var(--font-mono); font-size: 12px; letter-spacing: .2em; }
+@keyframes crt { 0% { transform: scale(1, 1); } 60% { transform: scale(1, 1); } 100% { transform: scale(0, 1); opacity: 0; } }
+.app-off .jx-shell { animation: powerdown .7s var(--ease) forwards; }
+@keyframes powerdown { to { transform: scaleY(0.004); filter: brightness(3); opacity: 0; } }
+
+/* ---- Lock screen ------------------------------------------------------- */
+.lock {
+  position: fixed; inset: 0; z-index: 900; display: grid; place-items: center; padding: 16px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(18px);
+}
+.lock-card { width: min(380px, 100%); display: grid; gap: 14px; justify-items: center; text-align: center; }
+.lock-card .hud { width: 150px; }
+.lock-card form { display: grid; gap: 10px; width: 100%; }
+.shake { animation: shake .4s; }
+@keyframes shake { 20%,60% { transform: translateX(-8px); } 40%,80% { transform: translateX(8px); } }

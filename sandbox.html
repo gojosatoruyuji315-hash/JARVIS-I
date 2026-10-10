@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Preview sandbox</title></head>
+<body>
+<script>
+  // Loaded by the Developer Workspace in <iframe sandbox="allow-scripts"> (opaque origin).
+  // Receives user HTML via postMessage and renders it with a permissive, isolated CSP.
+  addEventListener('message', (e) => {
+    if (!e.data || e.data.type !== 'jx-render') return;
+    document.open(); document.write(String(e.data.html)); document.close();
+  }, { once: true });
+</script>
+</body></html>

@@ -1,0 +1,121 @@
+/* ==========================================================================
+   JARVIS-X Design Tokens
+   Layout concept: a central holographic core flanked by floating glass
+   instrument panels; modules open as a single focused glass window above it.
+   Skins are selected with <html data-skin="…"> (set by js/core/theme.js).
+   ========================================================================== */
+
+:root {
+  /* Palette — "Arc" (default): electric blue / cyan on deep space black */
+  --bg:        #03070d;
+  --bg-2:      #07111c;
+  --panel:     rgba(10, 26, 42, 0.58);
+  --panel-solid:#0a1a2a;
+  --panel-hi:  rgba(22, 54, 82, 0.55);
+  --line:      rgba(120, 210, 255, 0.18);
+  --line-hi:   rgba(120, 220, 255, 0.42);
+  --fg:        #dff4ff;
+  --fg-dim:    #8fb1c6;
+  --fg-mute:   #5d7c90;
+  --accent:    #2ad4ff;      /* cyan */
+  --accent-2:  #1e7bff;      /* electric blue */
+  --accent-ink:#00121c;
+  --silver:    #c7d3dc;
+  --glow:      0 0 18px rgba(42, 212, 255, 0.45);
+  --glow-soft: 0 0 40px rgba(30, 123, 255, 0.18);
+
+  /* Semantic */
+  --ok:     #3ef0a1;
+  --warn:   #ffc24a;
+  --danger: #ff5470;
+
+  /* Premium */
+  --gold:    #f5c76b;
+  --gold-2:  #c8913a;
+  --master:  #b9a4ff;
+
+  /* Type */
+  --font-display: "Oxanium", "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --font-body:    "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --font-scale: 1;
+  --fs-xs: calc(11px * var(--font-scale));
+  --fs-sm: calc(12.5px * var(--font-scale));
+  --fs-md: calc(14px * var(--font-scale));
+  --fs-lg: calc(17px * var(--font-scale));
+  --fs-xl: calc(22px * var(--font-scale));
+  --fs-2xl: calc(30px * var(--font-scale));
+
+  /* Shape & motion */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --blur: 14px;
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --speed: 1;               /* animation speed multiplier (0 = off) */
+  --dock-w: 68px;
+  --top-h: 52px;
+
+  color-scheme: dark;
+}
+
+/* ---- Midnight Silver --------------------------------------------------- */
+[data-skin="silver"] {
+  --bg: #07090c; --bg-2: #0f1318;
+  --panel: rgba(28, 33, 40, 0.62); --panel-solid:#181d24; --panel-hi: rgba(52, 60, 72, 0.6);
+  --line: rgba(210, 220, 230, 0.16); --line-hi: rgba(220, 230, 240, 0.4);
+  --fg: #eef2f5; --fg-dim: #a6b0ba; --fg-mute: #6d7782;
+  --accent: #d6e2ec; --accent-2: #7f9bb3; --accent-ink: #0b0f14;
+  --glow: 0 0 16px rgba(214, 226, 236, 0.35); --glow-soft: 0 0 40px rgba(127,155,179,.15);
+}
+
+/* ---- Daylight Lab (light skin) ----------------------------------------- */
+[data-skin="daylight"] {
+  --bg: #e9f1f6; --bg-2: #dbe7ef;
+  --panel: rgba(255, 255, 255, 0.72); --panel-solid:#ffffff; --panel-hi: rgba(225, 240, 250, 0.9);
+  --line: rgba(20, 80, 120, 0.16); --line-hi: rgba(20, 110, 170, 0.45);
+  --fg: #0b2233; --fg-dim: #3f5d70; --fg-mute: #6f8796;
+  --accent: #0077c8; --accent-2: #0a4fd6; --accent-ink: #ffffff;
+  --glow: 0 0 12px rgba(0, 119, 200, 0.25); --glow-soft: 0 6px 30px rgba(10,79,214,.1);
+  --ok:#0f9d63; --warn:#b77700; --danger:#d0213f; --gold:#a8730f; --gold-2:#7c540a; --master:#5b3fd1;
+  color-scheme: light;
+}
+
+/* ---- PRO: Aurum (gold & blue) ------------------------------------------ */
+[data-skin="aurum"] {
+  --bg: #07080d; --bg-2: #10121b;
+  --panel: rgba(26, 24, 18, 0.6); --panel-solid:#17150f; --panel-hi: rgba(60, 50, 26, 0.55);
+  --line: rgba(245, 199, 107, 0.2); --line-hi: rgba(245, 199, 107, 0.5);
+  --fg: #fff6e3; --fg-dim: #cdb98f; --fg-mute: #8a7a58;
+  --accent: #f5c76b; --accent-2: #3d8bff; --accent-ink: #1a1203;
+  --glow: 0 0 18px rgba(245, 199, 107, 0.45); --glow-soft: 0 0 40px rgba(61,139,255,.16);
+}
+
+/* ---- PRO: Nebula ------------------------------------------------------- */
+[data-skin="nebula"] {
+  --bg: #05040f; --bg-2: #0d0a22;
+  --panel: rgba(24, 18, 52, 0.58); --panel-solid:#140f2c; --panel-hi: rgba(50, 36, 100, 0.55);
+  --line: rgba(160, 140, 255, 0.2); --line-hi: rgba(170, 150, 255, 0.5);
+  --fg: #ece8ff; --fg-dim: #a69fd0; --fg-mute: #6d6696;
+  --accent: #7ee8ff; --accent-2: #8a5cff; --accent-ink: #090418;
+  --glow: 0 0 18px rgba(126, 232, 255, 0.4); --glow-soft: 0 0 40px rgba(138,92,255,.22);
+}
+
+/* ---- MASTER: Obsidian Prime -------------------------------------------- */
+[data-skin="obsidian"] {
+  --bg: #000000; --bg-2: #070707;
+  --panel: rgba(14, 14, 16, 0.7); --panel-solid:#0c0c0e; --panel-hi: rgba(36, 34, 30, 0.7);
+  --line: rgba(230, 230, 235, 0.12); --line-hi: rgba(245, 199, 107, 0.45);
+  --fg: #f4f4f6; --fg-dim: #a3a3ab; --fg-mute: #6b6b73;
+  --accent: #f5c76b; --accent-2: #2ad4ff; --accent-ink: #120c00;
+  --glow: 0 0 22px rgba(245, 199, 107, 0.5); --glow-soft: 0 0 50px rgba(42,212,255,.14);
+}
+
+/* ---- Accessibility: high contrast -------------------------------------- */
+.hc {
+  --panel: #000; --panel-solid:#000; --panel-hi: #111;
+  --line: #ffffff; --line-hi: #ffff00;
+  --fg: #ffffff; --fg-dim: #ffffff; --fg-mute: #e0e0e0;
+  --accent: #ffff00; --accent-2: #00ffff; --accent-ink: #000;
+  --glow: none; --glow-soft: none; --blur: 0px;
+}

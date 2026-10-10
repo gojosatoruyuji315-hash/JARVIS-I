@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" data-skin="arc">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JARVIS-X</title>
+<meta name="description" content="JARVIS-X — a browser-based AI operating system: assistant, voice, productivity, study, developer workspace and more.">
+<meta name="theme-color" content="#03070d">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/hud.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/modules.css">
+</head>
+<body>
+  <!-- Ambient particle field (js/core/particles.js) -->
+  <canvas id="jx-particles" aria-hidden="true"></canvas>
+
+  <!-- Application shell is rendered by js/app.js. This fallback shows if JS is disabled. -->
+  <div id="jx-root">
+    <noscript>
+      <div style="padding:40px;color:#cfefff;font-family:sans-serif">JARVIS-X needs JavaScript enabled to run.</div>
+    </noscript>
+  </div>
+
+  <!-- Overlay layers -->
+  <div id="jx-overlays"></div>
+  <div id="jx-toasts" role="status" aria-live="polite"></div>
+  <div id="jx-announcer" class="sr-only" aria-live="assertive"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

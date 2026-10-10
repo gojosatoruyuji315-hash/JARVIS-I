@@ -1,0 +1,13 @@
+services:
+  jarvis-x:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - jarvis-data:/app/data
+      # Uncomment to let the server start sandboxed code-runner containers (CODE_RUNNER=docker):
+      # - /var/run/docker.sock:/var/run/docker.sock
+volumes:
+  jarvis-data:
