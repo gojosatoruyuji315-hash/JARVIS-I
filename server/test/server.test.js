@@ -96,6 +96,18 @@ test('music search proxy (iTunes)', async () => {
   assert.equal(r.data.tracks[0].title, 'Mock Song'); assert.equal(r.data.tracks[0].preview, true);
 });
 
+test('reader proxy: signed-in only, blocks private networks, extracts article text', async () => {
+  const anon = new Client(); assert.equal((await anon.req('GET', '/api/web/read?url=' + encodeURIComponent('http://93.184.215.14/a'))).status, 401);
+  const c = new Client(); await c.req('POST', '/api/auth/register', { email: 'reader@example.com', password: 'supersecret1', name: 'R' });
+  for (const bad of ['http://127.0.0.1/', 'http://10.0.0.5/x', 'http://169.254.169.254/latest', 'file:///etc/passwd', 'http://[::1]/', 'http://93.184.215.14:8080/']) {
+    assert.equal((await c.req('GET', '/api/web/read?url=' + encodeURIComponent(bad))).status, 400, bad);
+  }
+  const r = await c.req('GET', '/api/web/read?url=' + encodeURIComponent('http://93.184.215.14/a'));
+  assert.equal(r.status, 200); assert.equal(r.data.title, 'Mock Article'); assert.equal(r.data.site, 'Mock News');
+  assert.deepEqual(r.data.blocks.map((b) => b.t), ['h', 'p', 'p']);
+  assert.ok(!JSON.stringify(r.data).includes('evil') && !JSON.stringify(r.data).includes('Menu'));
+});
+
 test('password reset flow revokes old sessions', async () => {
   const c = new Client(); await c.req('POST', '/api/auth/register', { email: 'reset@example.com', password: 'password123' });
   assert.equal((await c.req('POST', '/api/auth/forgot', { email: 'reset@example.com' })).status, 200);

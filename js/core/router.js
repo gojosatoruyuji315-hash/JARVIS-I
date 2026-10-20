@@ -18,6 +18,7 @@ import { t } from './i18n.js';
 export const MODULES = [
   { id: 'home', icon: 'home' },
   { id: 'assistant', icon: 'chat', load: () => import('../modules/assistant.js') },
+  { id: 'internet', icon: 'globe', load: () => import('../modules/internet.js') },
   { id: 'productivity', icon: 'tasks', load: () => import('../modules/productivity.js') },
   { id: 'study', icon: 'book', load: () => import('../modules/study.js') },
   { id: 'dev', icon: 'code', load: () => import('../modules/devspace.js') },

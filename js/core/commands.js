@@ -129,6 +129,10 @@ export function runCommand(input) {
     import('./studymode.js').then(({ studyMode }) => studyMode.end());
     return { reply: 'Study session ended — your minutes are logged in Study → Progress.' };
   }
+  if ((m = raw.match(/^(?:search(?: the web| online| internet)? for|google|look up online|browse(?: to)?|web search)\s+(.+)$/i))) {
+    bus.emit('open', { id: 'internet', params: { q: m[1] } }); track('web search');
+    return { reply: `Searching the web for **${m[1]}**.` };
+  }
   if (/^(play|resume)\s+(some\s+)?music|^play$/.test(q)) { bus.emit('music', { cmd: 'play' }); track('music'); return { reply: 'Playing music.' }; }
   {
     const m = raw.replace(/[.!]$/, '').match(/^play\s+(?:the\s+)?(?:song\s+)?(.{2,80}?)(?:\s+on\s+music)?$/i);

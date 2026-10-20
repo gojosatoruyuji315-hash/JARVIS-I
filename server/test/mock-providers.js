@@ -49,6 +49,7 @@ globalThis.fetch = async (url, opts = {}) => {
     if (opts.method === 'POST') return json({ id: 'pred_1', status: 'starting', output: null });
     return json({ id: 'pred_1', status: 'succeeded', output: 'https://replicate.delivery/mock/video.mp4' });
   }
+  if (u.host === '93.184.215.14') return new Response('<html><head><title>Mock Article</title><meta property="og:site_name" content="Mock News"></head><body><nav>Menu</nav><article><h1>Big story</h1><p>This is the first paragraph of a long article about something important.</p><script>evil()</script><p>Second paragraph with more words to pass the length filter.</p></article><footer>foot</footer></body></html>', { status: 200, headers: { 'content-type': 'text/html' } });
   if (u.host === 'itunes.apple.com') return json({ results: [{ trackId: 1, trackName: 'Mock Song', artistName: 'Mock Artist', collectionName: 'Mock Album', artworkUrl100: 'https://example.com/100x100.jpg', previewUrl: 'https://example.com/p.m4a' }] });
   return realFetch(url, opts);
 };

@@ -80,6 +80,7 @@ export function defaultState() {
     plugins: { installed: [], pinned: [], config: {}, data: {}, urls: [] },
     usage: { aiDay: t, aiCount: 0, byDay: {}, totals: { messages: 0, voice: 0, commands: 0, focusMin: 0 } },
     studyMode: { active: false },
+    web: { engine: 'ddg', tabs: [], bookmarks: [], history: [] },
     secrets: { aiKey: '', youtubeKey: '' },
     meta: { ts: {}, sync: {} },
     seen: { onboarding: false },

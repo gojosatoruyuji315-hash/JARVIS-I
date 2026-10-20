@@ -208,3 +208,51 @@
 .t-teacher .t-who { color: var(--accent); }
 .teacher-quick { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 760px) { .teacher-grid { grid-template-columns: 1fr; } .teacher-side { border-right: 0; padding-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 10px; } .teacher-log { max-height: 50vh; } }
+
+/* ---- Internet (online mode) ---------------------------------------------- */
+.net { display: flex; flex-direction: column; height: calc(100% + 32px); min-height: 0; gap: 0; margin: -16px; }
+.net-tabs { display: flex; gap: 4px; padding: 8px 10px 0; overflow-x: auto; border-bottom: 1px solid var(--line); flex: none; }
+.net-tab { display: flex; align-items: center; gap: 7px; max-width: 200px; min-width: 0; padding: 7px 10px; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; background: none; color: var(--fg-dim); cursor: pointer; font: inherit; font-size: 13px; white-space: nowrap; }
+.net-tab span { overflow: hidden; text-overflow: ellipsis; }
+.net-tab:hover { color: var(--fg); background: var(--panel-hi); }
+.net-tab.active { color: var(--fg); background: var(--panel-hi); border-color: var(--line); }
+.net-tab img, .net-tab svg { flex: none; border-radius: 3px; }
+.net-new { font-size: 18px; padding: 2px 12px; }
+.net-x { background: none; border: 0; color: var(--fg-mute); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; border-radius: 4px; }
+.net-x:hover { color: var(--danger); background: var(--panel); }
+.net-bar { display: flex; align-items: center; gap: 4px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--panel-hi); flex: none; }
+.net-bar .btn.on { color: var(--accent); }
+.net-addr-wrap { flex: 1; display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 38px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--fg-mute); min-width: 0; }
+.net-addr-wrap:focus-within { border-color: var(--accent); box-shadow: var(--glow-soft); }
+.net-addr { flex: 1; border: 0; background: none; color: var(--fg); font: inherit; font-size: 14px; outline: none; min-width: 0; }
+.net-view { position: relative; flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.net-frame { flex: 1; width: 100%; min-height: 60vh; border: 0; background: #fff; }
+.net-hint { flex: none; font-size: 12px; color: var(--fg-mute); padding: 6px 12px; border-top: 1px solid var(--line); }
+.linklike { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
+.net-start { padding: 24px clamp(16px, 4vw, 48px) 40px; display: grid; gap: 16px; max-width: 1200px; width: 100%; margin: 0 auto; }
+.net-hero { display: grid; gap: 10px; text-align: center; justify-items: center; padding: 18px 0 6px; }
+.net-big { width: min(680px, 100%); height: 52px; padding: 0 22px; font: inherit; font-size: 17px; border-radius: 999px; border: 1px solid var(--line-hi); background: var(--panel); color: var(--fg); box-shadow: var(--glow-soft); outline: none; }
+.net-big:focus { border-color: var(--accent); }
+.net-engine { width: auto; height: 30px; padding: 0 8px; font-size: 12px; }
+.net-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.net-tile { position: relative; display: grid; justify-items: center; gap: 8px; padding: 14px 8px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel); color: var(--fg); cursor: pointer; font: inherit; font-size: 12px; text-align: center; }
+.net-tile:hover { border-color: var(--accent); }
+.net-tile img { border-radius: 6px; }
+.net-tile span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.net-tile .net-x { position: absolute; top: 2px; right: 4px; opacity: 0; }
+.net-tile:hover .net-x { opacity: 1; }
+.net-tile-letter { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); font-weight: 700; }
+.net-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; align-items: start; }
+.net-cols .w-title { display: flex; gap: 6px; align-items: center; }
+.net-results { padding: 20px clamp(16px, 4vw, 48px); display: grid; gap: 12px; max-width: 980px; }
+.net-vids { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.net-vid { display: grid; gap: 4px; text-align: left; background: none; border: 0; color: var(--fg); cursor: pointer; padding: 0; font: inherit; }
+.net-vid img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+.net-vid:hover img { border-color: var(--accent); }
+.net-blocked { margin: auto; padding: 40px 20px; display: grid; gap: 12px; justify-items: center; text-align: center; max-width: 520px; color: var(--fg-dim); }
+.net-reader { max-width: 760px; width: 100%; margin: 0 auto; padding: 28px 22px 60px; font-size: 17px; line-height: 1.7; }
+.net-reader h1 { font-size: 30px; line-height: 1.25; margin: 6px 0 16px; }
+.net-reader h2 { font-size: 21px; margin: 26px 0 8px; }
+.net-reader img { width: 100%; border-radius: 12px; margin: 8px 0 16px; }
+.net-reader blockquote { border-left: 3px solid var(--accent); margin: 12px 0; padding: 4px 14px; color: var(--fg-dim); }
+@media (max-width: 760px) { .net-bar .btn.icon { padding: 5px; } .net-start { padding: 16px; } .net-big { height: 46px; font-size: 16px; } }

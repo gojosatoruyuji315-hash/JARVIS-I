@@ -13,6 +13,16 @@
 | Themes | Arc Blue, Midnight Silver, Daylight Lab, Aurum, Nebula, Obsidian Prime · custom accent color |
 | Command palette, Smart search | `Ctrl+P` / `Ctrl+K`, fully keyboard driven |
 
+## Internet (online mode)
+A browser built into JARVIS-X, in the sidebar under **Internet**:
+- **Tabs** with back, forward, reload, start page, bookmarks (☆) and history.
+- **One bar for everything:** type a question to search, or an address to open it.
+- **Start page:** big search box, your sites as tiles (add/remove your own), today's news (Google News on the server, Wikipedia *In the news* elsewhere), Wikipedia's featured article and *On this day*, Hacker News, bookmarks and recently visited.
+- **In-app search results:** instant answer, Wikipedia articles and YouTube videos that play right there — plus one-tap Google / DuckDuckGo / Bing / Brave for full web results.
+- **Pages open inside the app** when the site allows it (Wikipedia, YouTube videos, docs, blogs…). Sites that refuse to be shown inside other apps (Google, Instagram, WhatsApp…) get a card with **Open in new tab** and **Reader view**.
+- **Reader view:** clean article text with *Save to Notes* and *Summarise with AI* (any site on the JARVIS-X server, which fetches the page safely for you; Wikipedia everywhere).
+- Links you open from the assistant, commands ("open wikipedia.org") or routines open here; "search the web for …" searches here.
+
 ## Sidebar
 Every item has a name and a hover description, grouped into **Work & study**, **Create & play** and **Extras**, with your pinned plugins below. Collapse it to icons with **Collapse** (it starts collapsed on narrower screens); on phones it becomes a labelled bottom bar.
 

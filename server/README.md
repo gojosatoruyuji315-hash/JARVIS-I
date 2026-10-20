@@ -53,6 +53,7 @@ GET  /api/run/status                POST /api/run {lang, code, stdin?}
 POST /api/media/image {prompt, size}   POST /api/media/speech {text, voice}
 POST /api/media/replicate/predictions {model, input}   GET /api/media/replicate/predictions/:id
 GET  /api/music/search?source=itunes|youtube&q=
+GET  /api/web/read?url=             Reader view (signed in; public http/https only — private networks refused)
 GET/POST /api/keys  DELETE /api/keys/:id
 /v1/tasks · /v1/notes · /v1/memory · /v1/events · /v1/chat   (Authorization: Bearer jxk_…)
 ```

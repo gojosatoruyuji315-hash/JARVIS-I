@@ -54,13 +54,13 @@ function renderShell() {
 
 /** Sidebar: named, grouped navigation. Collapsible to icons; trims to study tools in study mode. */
 const NAV = [
-  { items: ['home', 'assistant'] },
+  { items: ['home', 'assistant', 'internet'] },
   { title: 'Work & study', items: ['productivity', 'study', 'files', 'memory'] },
   { title: 'Create & play', items: ['music', 'dev', 'automation'] },
   { title: 'Extras', items: ['plugins', 'analytics', 'workspace'] },
 ];
 const HINTS = {
-  home: 'Your dashboard and widgets', assistant: 'Chat — ask JARVIS-X anything or tell it to do things',
+  home: 'Your dashboard and widgets', internet: 'Browse the web: tabs, search, bookmarks, reader view', assistant: 'Chat — ask JARVIS-X anything or tell it to do things',
   productivity: 'Tasks, notes, calendar, reminders, habits, Pomodoro', study: 'Flashcards, quizzes, mind maps, exam mode, progress',
   files: 'Your files and generated images, videos and music', memory: 'What JARVIS-X remembers about you',
   music: 'Search and play music, or compose songs with AI', dev: 'Write, run and debug code',
@@ -174,8 +174,9 @@ const startupVariant = () => { const v = store.get('settings.startup'); return v
 /* -------------------------------------------------------------- bus wiring */
 function wire() {
   bus.on('open', ({ id, params }) => router.open(id, params));
-  bus.on('open:url', ({ url }) => {
-    let w = null; try { w = window.open(url, '_blank', 'noopener'); } catch { /* */ }
+  bus.on('open:url', ({ url, external }) => {
+    if (!external && platform.hasNetwork) return router.open('internet', { url }); // online mode: open in the Internet app
+    let w = null; try { w = window.open(url, '_blank'); if (w) w.opener = null; } catch { /* */ }
     if (!w) toast(h('span', 'Open link: ', h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, url)), { timeout: 9000 });
   });
   bus.on('assistant:ask', ({ text }) => {
@@ -293,7 +294,7 @@ function onboarding() {
 
 /* ------------------------------------------------- public plugin/debug API */
 window.JX = {
-  version: '2.6.0', bus, store, router, voice, ask, license, providers, platform, sync,
+  version: '2.7.0', bus, store, router, voice, ask, license, providers, platform, sync,
   /** Plugin API — see js/core/plugins.js and docs/PLUGINS.md. */
   plugins,
 };

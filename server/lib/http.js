@@ -97,7 +97,7 @@ export function securityHeaders(res, pathname) {
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: data: https:",
     "connect-src 'self' https:",
-    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
+    "frame-src 'self' https:",
     "worker-src 'self' blob:",
     "object-src 'none'", "base-uri 'self'", "form-action 'self'",
   ].join('; '));
