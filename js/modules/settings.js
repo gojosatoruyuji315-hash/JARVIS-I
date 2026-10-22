@@ -77,11 +77,12 @@ function AI(el) {
   const opts = [['auto', `Automatic (now: ${providers[active].label})`],
     ...(providers.claude.available() ? [['claude', providers.claude.label]] : []),
     ...(platform.isServer ? [['server', providers.server.label + (license.user() ? '' : ' — sign in first')]] : []),
-    ['anthropic', providers.anthropic.label], ['openai', providers.openai.label], ['local', providers.local.label]];
-  const usesKey = a.provider === 'anthropic' || a.provider === 'openai' || (a.provider === 'auto' && !providers.claude.available() && !providers.server.available());
+    ['ollama', providers.ollama.label], ['anthropic', providers.anthropic.label], ['openai', providers.openai.label], ['local', providers.local.label]];
+  const usesKey = a.provider === 'anthropic' || a.provider === 'openai' || (a.provider === 'auto' && !providers.claude.available() && !providers.server.available() && active !== 'ollama');
   const keyProv = a.provider === 'openai' || (a.provider === 'auto' && a.keyProvider === 'openai') ? 'openai' : 'anthropic';
-  el.append(h('div.stack', section(
-    row('AI engine', active === 'claude' ? 'Running inside Claude: answers use your Claude account, no key needed.' : active === 'server' ? 'Answers come from your JARVIS-X server; keys stay on the server.' : active === 'local' ? 'Offline engine only. Add a key or use the server for full answers.' : 'Calls go straight from this browser with your key.',
+  const showOllama = !platform.isHost && (a.provider === 'ollama' || a.provider === 'auto' || active === 'ollama');
+  el.append(h('div.stack', showOllama ? ollamaPanel(re, a.provider === 'ollama' || active === 'ollama') : null, section(
+    row('AI engine', active === 'claude' ? 'Running inside Claude: answers use your Claude account, no key needed.' : active === 'server' ? 'Answers come from your JARVIS-X server; keys stay on the server.' : active === 'ollama' ? 'Answers come from Ollama on your computer — private, free, works offline.' : active === 'local' ? 'Offline engine only. Install Ollama, add a key or use the server for full answers.' : 'Calls go straight from this browser with your key.',
       select(a.provider, opts, (v) => { store.set('settings.ai.provider', v); re(); }, 'AI engine')),
     active === 'claude' || a.provider === 'claude' ? row('Response mode', 'Fast answers immediately; Deep thinks longest for hard problems', select(a.tier, [['quick', 'Fast'], ['default', 'Balanced'], ['complex', 'Deep']], (v) => store.set('settings.ai.tier', v), 'Response mode')) : null,
     usesKey ? row('Key provider', null, select(keyProv, [['anthropic', 'Anthropic'], ['openai', 'OpenAI-compatible']], (v) => { store.set('settings.ai.keyProvider', v); if (a.provider !== 'auto') store.set('settings.ai.provider', v); re(); }, 'Key provider')) : null,
@@ -98,6 +99,52 @@ function AI(el) {
     row('Live web', 'The AI searches the internet and reads pages for current information, and shows its sources', toggle('', a.web !== false, (x) => store.set('settings.ai.web', x))),
     row(h('span', 'Personality ', featureBadge('ai.personalities')), null, select(a.personality, Object.entries(PERSONALITIES).map(([k, p]) => [k, p.label]), (v) => { if (PERSONALITIES[v].plan !== 'free' && !gate('ai.personalities')) { re(); return; } store.set('settings.ai.personality', v); re(); }, 'Personality')),
     a.personality === 'custom' ? row('Custom persona', 'Describe how JARVIS-X should behave', h('textarea.textarea', { value: a.customPersona || '', placeholder: 'e.g. You are a calm British butler who loves astronomy…', onchange: (e) => store.set('settings.ai.customPersona', e.target.value) })) : null)));
+}
+
+/** Ollama: run models on this computer — status, model picker, downloads, tools. */
+function ollamaPanel(re, inUse) {
+  const box = h('div.glass.widget.stack');
+  const paint = async (force) => {
+    const ol = await import('../core/ollama.js');
+    box.replaceChildren(h('div.row', icon('cpu'), h('b.grow', 'Ollama — AI on your computer'), h('span.small.dim', 'Checking…')));
+    const st = await ol.detect(force);
+    const url = h('input.input', { value: ol.base(), style: 'max-width:260px', 'aria-label': 'Ollama address', onchange: (e) => { store.set('settings.ai.ollamaUrl', e.target.value.trim()); paint(true); } });
+    const head = h('div.row', icon('cpu'), h('b.grow', 'Ollama — AI on your computer'),
+      st.ok ? h('span.pill.ok', `Connected · v${st.version}`) : h('span.pill', { style: 'color:var(--warn)' }, 'Not found'),
+      h('button.btn.ghost.sm', { onclick: () => paint(true) }, icon('refresh', { size: 13 }), 'Check again'));
+    if (!st.ok) {
+      const help = ol.corsHelp();
+      box.replaceChildren(head, h('div.small.dim', 'Ollama runs AI models privately on your own computer — free, no key, works offline.'),
+        h('ol.small', { style: 'margin:0' }, help.steps.map((x) => h('li', /^(Windows|Mac|Linux)/.test(x) ? h('code', x.replace(/^[^:]+:\s*/, '')) : x))),
+        h('div.row', h('span.small', 'Ollama address'), url));
+      return;
+    }
+    const models = st.models;
+    const sel = h('select.select', { style: 'width:auto', 'aria-label': 'Model', onchange: (e) => { store.set('settings.ai.ollamaModel', e.target.value); toast(`Using ${e.target.value}`, { timeout: 1500 }); } },
+      models.length ? models.map((m) => h('option', { value: m.name, selected: m.name === (store.get('settings.ai.ollamaModel') || models[0].name) }, `${m.name}${m.params ? ` · ${m.params}` : ''} · ${fmt.bytes(m.size)}`)) : h('option', { value: '' }, 'No models yet — download one below'));
+    const prog = h('div.small.dim'); const bar = h('progress', { max: 1, value: 0, style: 'width:100%', hidden: true });
+    const custom = h('input.input', { placeholder: 'Any model name from ollama.com/library, e.g. deepseek-r1:7b', style: 'flex:1;min-width:200px' });
+    const download = async (name) => {
+      if (!name) return; bar.hidden = false; prog.textContent = `Downloading ${name}…`;
+      try {
+        await ol.pull(name, (p) => { if (p.total) { bar.value = (p.completed || 0) / p.total; prog.textContent = `${name}: ${p.status} — ${fmt.bytes(p.completed || 0)} of ${fmt.bytes(p.total)}`; } else prog.textContent = `${name}: ${p.status}`; });
+        store.set('settings.ai.ollamaModel', name); toast(`${name} is ready`, { type: 'ok' }); paint(); bus.emit('ai:provider');
+      } catch (e) { prog.textContent = e.message; bar.hidden = true; }
+    };
+    const toolsOn = store.get('settings.ai.ollamaTools') !== false;
+    box.replaceChildren(...[head,
+      inUse ? null : h('div.row', h('span.small.dim.grow', 'Ollama is running. Use it for all answers?'), h('button.btn.primary.sm', { onclick: () => { store.set('settings.ai.provider', 'ollama'); re(); } }, 'Use Ollama')),
+      h('div.row', h('span.small', 'Model'), sel, !models.length ? '' : h('button.btn.ghost.sm', { onclick: async () => { const m = sel.value; if (!m || !(await confirmDialog(`Delete ${m} from your computer?`))) return; await ol.remove(m); if (store.get('settings.ai.ollamaModel') === m) store.set('settings.ai.ollamaModel', ''); paint(); } }, icon('trash', { size: 13 }), 'Delete')),
+      h('label.row.small', h('input', { type: 'checkbox', checked: toolsOn, onchange: (e) => store.set('settings.ai.ollamaTools', e.target.checked) }), 'Let the model use JARVIS-X actions and live web search (needs a tool-capable model — Llama 3.1+, Qwen, Mistral)'),
+      h('details', { open: !models.length }, h('summary.small', 'Download a model'),
+        h('div.list', { style: 'margin-top:6px' }, ol.RECOMMENDED.map(([name, desc, size]) => h('div.item', h('span.grow', h('b.small', name), h('div.xs.dim', desc)), h('span.xs.muted', size),
+          models.some((m) => m.name === name) ? h('span.pill.ok', 'Installed') : h('button.btn.sm', { onclick: () => download(name) }, icon('download', { size: 13 }), 'Download')))),
+        h('div.row', { style: 'margin-top:6px' }, custom, h('button.btn.sm', { onclick: () => download(custom.value.trim()) }, 'Download'))),
+      bar, prog,
+      h('div.row', h('span.xs.muted', 'Address'), url)].filter(Boolean));
+  };
+  paint();
+  return box;
 }
 
 function General(el) {

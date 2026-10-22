@@ -13,6 +13,15 @@
 | Themes | Arc Blue, Midnight Silver, Daylight Lab, Aurum, Nebula, Obsidian Prime · custom accent color |
 | Command palette, Smart search | `Ctrl+P` / `Ctrl+K`, fully keyboard driven |
 
+## Ollama (AI on your own computer)
+Run AI models privately on your computer — free, no API key, works offline.
+- JARVIS-X **finds Ollama automatically** (http://localhost:11434) and uses it when you have no other AI set up. Pick it any time in **Settings → AI → AI engine → Ollama**.
+- **Settings → AI → Ollama:** connection status, choose a model, **download models** with a progress bar (Llama 3.2/3.1, Qwen 2.5/3, Gemma 3, Mistral, Phi-4 mini, or any name from ollama.com/library), delete models, change the address.
+- **Actions and live web:** tool-capable models can add tasks, set reminders, control music… and search the web / read pages, just like the cloud AIs. Models without tools still get live search results handed to them.
+- Thinking models' `<think>` sections are hidden; replies stream as they're written.
+- **Works out of the box** when you run JARVIS-X with the launcher (localhost). On a website (like GitHub Pages) Ollama must allow that address: set `OLLAMA_ORIGINS` to it and restart Ollama — the Ollama panel shows the exact command for Windows, Mac and Linux.
+- **Server:** `AI_PROVIDER=ollama`, `OLLAMA_URL`, `OLLAMA_MODEL` make the JARVIS-X server use Ollama for everyone.
+
 ## Live web (the AI goes online)
 With **Live web** on (top-bar **LIVE WEB** chip, the Assistant's *Live web* button, or Settings → AI), the assistant looks things up on the real internet before answering anything current or factual — news, prices, scores, weather, people in office, release dates — and answers with the actual information plus a **Sources** list.
 - **JARVIS-X server with an Anthropic key, or your own Anthropic key:** Claude uses Anthropic's own *web search* and *web fetch* tools — it searches, reads pages and cites them (searches are billed by Anthropic at about $10 per 1,000). If web search is switched off for the API account, JARVIS-X falls back to its free search automatically.

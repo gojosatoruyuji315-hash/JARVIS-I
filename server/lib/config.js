@@ -47,12 +47,13 @@ export const config = {
 
   // AI
   ai: {
-    provider: env('AI_PROVIDER', process.env.ANTHROPIC_API_KEY ? 'anthropic' : process.env.OPENAI_API_KEY ? 'openai' : ''),
+    provider: env('AI_PROVIDER', process.env.ANTHROPIC_API_KEY ? 'anthropic' : process.env.OPENAI_API_KEY ? 'openai' : process.env.OLLAMA_URL ? 'ollama' : ''),
     anthropicKey: env('ANTHROPIC_API_KEY'),
     anthropicModel: env('ANTHROPIC_MODEL', 'claude-sonnet-4-5'),
-    openaiKey: env('OPENAI_API_KEY'),
-    openaiBase: env('OPENAI_BASE_URL', 'https://api.openai.com/v1').replace(/\/$/, ''),
-    openaiModel: env('OPENAI_MODEL', 'gpt-4o-mini'),
+    // Ollama (AI_PROVIDER=ollama) is spoken to through its OpenAI-compatible API
+    openaiKey: env('AI_PROVIDER') === 'ollama' || (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && process.env.OLLAMA_URL) ? 'ollama' : env('OPENAI_API_KEY'),
+    openaiBase: (env('AI_PROVIDER') === 'ollama' || (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && process.env.OLLAMA_URL) ? `${env('OLLAMA_URL', 'http://localhost:11434').replace(/\/$/, '')}/v1` : env('OPENAI_BASE_URL', 'https://api.openai.com/v1')).replace(/\/$/, ''),
+    openaiModel: env('AI_PROVIDER') === 'ollama' || (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && process.env.OLLAMA_URL) ? env('OLLAMA_MODEL', 'llama3.2') : env('OPENAI_MODEL', 'gpt-4o-mini'),
     maxTokens: num('AI_MAX_TOKENS', 2048),
     /** Live web for the assistant: Anthropic's web search + web fetch tools ('on'), or only the free built-in search ('basic'), or 'off'. */
     web: env('AI_WEB', 'on'),

@@ -69,7 +69,7 @@ async function upstream({ system, messages, tools, stream }, signal) {
 export function aiRoutes(r) {
   r.get('/api/ai/status', async (req, res) => {
     const a = req.auth;
-    return json(res, { web: A.web === 'off' ? 'off' : A.provider === 'anthropic' && A.web === 'on' && nativeWebOk ? 'native' : 'basic', configured: !!A.provider, provider: A.provider || null, model: A.provider === 'anthropic' ? A.anthropicModel : A.provider === 'openai' ? A.openaiModel : null, quota: a ? quota(a.user.id) : null });
+    return json(res, { web: A.web === 'off' ? 'off' : A.provider === 'anthropic' && A.web === 'on' && nativeWebOk ? 'native' : 'basic', configured: !!A.provider, provider: A.provider || null, model: A.provider === 'anthropic' ? A.anthropicModel : (A.provider === 'openai' || A.provider === 'ollama') ? A.openaiModel : null, quota: a ? quota(a.user.id) : null });
   });
 
   r.post('/api/ai/chat', async (req, res) => {
