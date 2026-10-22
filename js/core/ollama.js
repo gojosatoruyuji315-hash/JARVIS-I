@@ -25,7 +25,10 @@ export const RECOMMENDED = [
   ['phi4-mini', 'Phi-4 mini · 3.8B — small and clever at maths/code', '2.5 GB'],
 ];
 
-export const base = () => (store.get('settings.ai.ollamaUrl') || 'http://localhost:11434').replace(/\/$/, '');
+// Ollama listens on 127.0.0.1 by default; "localhost" can resolve to IPv6 (::1) on some computers and miss it.
+const CANDIDATES = ['http://127.0.0.1:11434', 'http://localhost:11434'];
+let found = null;
+export const base = () => (store.get('settings.ai.ollamaUrl') || found || CANDIDATES[0]).replace(/\/$/, '');
 let state = { checked: false, ok: false, version: null, error: null, models: [] };
 const noTools = new Set();
 export const status = () => state;
@@ -33,15 +36,40 @@ export const status = () => state;
 /** Is Ollama reachable? Caches the result (call with force to re-check). */
 export async function detect(force = false) {
   if (state.checked && !force) return state;
-  try {
-    const r = await fetch(`${base()}/api/version`, { signal: AbortSignal.timeout?.(2500) });
-    if (!r.ok) throw new Error(`Ollama answered ${r.status}`);
-    const v = await r.json();
-    state = { checked: true, ok: true, version: v.version, error: null, models: await listModels().catch(() => []) };
-  } catch (e) {
-    state = { checked: true, ok: false, version: null, models: [], error: e.name === 'TimeoutError' ? 'timeout' : 'unreachable' };
+  const custom = store.get('settings.ai.ollamaUrl');
+  const tries = custom ? [custom.replace(/\/$/, '')] : CANDIDATES;
+  let lastErr = null;
+  for (const b of tries) {
+    try {
+      const r = await fetch(`${b}/api/version`, { signal: AbortSignal.timeout?.(4000), cache: 'no-store' });
+      if (r.status === 403) { lastErr = 'forbidden'; continue; } // Ollama refused this website's address
+      if (!r.ok) { lastErr = `status ${r.status}`; continue; }
+      const v = await r.json();
+      found = b;
+      state = { checked: true, ok: true, version: v.version, error: null, base: b, models: await listModels().catch(() => []) };
+      return state;
+    } catch (e) {
+      if (e.name === 'TimeoutError') { lastErr = lastErr || 'timeout'; continue; }
+      // Is something answering at all? A no-cors probe succeeds if Ollama runs but refuses this website.
+      const alive = await fetch(`${b}/api/version`, { mode: 'no-cors', signal: AbortSignal.timeout?.(3000), cache: 'no-store' }).then(() => true, () => false);
+      lastErr = alive ? 'forbidden' : lastErr === 'forbidden' ? 'forbidden' : 'blocked';
+    }
   }
+  state = { checked: true, ok: false, version: null, models: [], error: lastErr, reason: diagnose(lastErr) };
   return state;
+}
+
+/** Explain in plain words why the browser couldn't reach Ollama. */
+export function diagnose(err) {
+  const origin = location.origin;
+  const localPage = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  const safari = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent);
+  if (window.claude?.use) return { code: 'viewer', text: 'You are inside the Claude viewer, which can\'t reach programs on your computer. Open JARVIS-X with the launcher or your website instead.' };
+  if (err === 'forbidden') return { code: 'origin', text: `Ollama is running but refused this website (${origin}). Allow it with OLLAMA_ORIGINS (steps below) and restart Ollama.` };
+  if (err === 'timeout') return { code: 'timeout', text: 'Ollama didn\'t answer in time — it may still be starting. Wait a few seconds and press Check again.' };
+  if (!localPage && safari) return { code: 'safari', text: 'Safari doesn\'t let websites talk to programs on your computer. Use the JARVIS-X launcher, or open your site in Chrome or Edge.' };
+  if (!localPage) return { code: 'website', text: `Either Ollama isn't running, or it doesn't allow this website yet. When Chrome or Edge asks "Allow access to devices on your local network?", choose Allow. Then allow ${origin} in Ollama (steps below).` };
+  return { code: 'notrunning', text: 'Ollama isn\'t running on this computer (or isn\'t installed). Open the Ollama app — you should see its llama icon in the menu bar / system tray — then press Check again.' };
 }
 
 export async function listModels() {
@@ -140,12 +168,15 @@ export async function chat({ system, messages, tools, runTool, onText, signal, o
 export const supportsTools = (model) => !noTools.has(model);
 
 /** Setup help shown when the page can't reach Ollama. */
-export function corsHelp() {
+export function corsHelp(code) {
   const origin = location.origin;
   const local = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
   return { origin, local,
-    steps: local ? ['Install Ollama from ollama.com and open it (or run: ollama serve).', 'Come back and press Check again.']
-      : ['Install Ollama from ollama.com.', `Allow this website to use it — set OLLAMA_ORIGINS to ${origin}:`,
-        `Windows (Command Prompt): setx OLLAMA_ORIGINS "${origin}"`, `Mac (Terminal): launchctl setenv OLLAMA_ORIGINS "${origin}"`, `Linux: OLLAMA_ORIGINS="${origin}" ollama serve`,
-        'Quit Ollama completely and open it again, then press Check again.', 'Easiest: run JARVIS-X with the launcher on your computer (localhost) — it works with Ollama without any setting.'] };
+    steps: local && code !== 'origin' ? ['Install Ollama from ollama.com and open it (or run: ollama serve in a terminal).', 'Check it works: open http://127.0.0.1:11434 in a new tab — it should say "Ollama is running".', 'Download at least one model (in this panel once connected, or run: ollama pull llama3.2).', 'Come back and press Check again.']
+      : ['Install Ollama from ollama.com and make sure it is running — http://127.0.0.1:11434 in a new tab should say "Ollama is running".',
+        `Allow this website in Ollama by setting OLLAMA_ORIGINS to ${origin}:`,
+        `Windows (Command Prompt): setx OLLAMA_ORIGINS "${origin}"`, `Mac (Terminal): launchctl setenv OLLAMA_ORIGINS "${origin}"`, `Linux: sudo systemctl edit ollama → add Environment="OLLAMA_ORIGINS=${origin}" → sudo systemctl restart ollama`,
+        'Quit Ollama completely (right-click its tray / menu-bar icon → Quit) and open it again.',
+        'Press Check again. If Chrome or Edge asks to allow access to your local network, choose Allow.',
+        'Easiest of all: use the JARVIS-X launcher on your computer (http://localhost:8765) — it works with Ollama without any setting.'] };
 }

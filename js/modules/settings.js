@@ -113,10 +113,12 @@ function ollamaPanel(re, inUse) {
       st.ok ? h('span.pill.ok', `Connected · v${st.version}`) : h('span.pill', { style: 'color:var(--warn)' }, 'Not found'),
       h('button.btn.ghost.sm', { onclick: () => paint(true) }, icon('refresh', { size: 13 }), 'Check again'));
     if (!st.ok) {
-      const help = ol.corsHelp();
-      box.replaceChildren(head, h('div.small.dim', 'Ollama runs AI models privately on your own computer — free, no key, works offline.'),
-        h('ol.small', { style: 'margin:0' }, help.steps.map((x) => h('li', /^(Windows|Mac|Linux)/.test(x) ? h('code', x.replace(/^[^:]+:\s*/, '')) : x))),
-        h('div.row', h('span.small', 'Ollama address'), url));
+      const help = ol.corsHelp(st.reason?.code);
+      box.replaceChildren(...[head, h('div.small.dim', 'Ollama runs AI models privately on your own computer — free, no key, works offline.'),
+        st.reason ? h('div.small', { style: 'color:var(--warn)' }, h('b', 'Why it isn\'t connecting: '), st.reason.text) : null,
+        h('div.xs.muted', `This page: ${location.origin} · tried ${store.get('settings.ai.ollamaUrl') || 'http://127.0.0.1:11434 and http://localhost:11434'}`),
+        h('ol.small', { style: 'margin:0' }, help.steps.map((x) => { const m = x.match(/^(Windows[^:]*|Mac[^:]*|Linux): (.+)$/); return h('li', m ? [`${m[1]}: `, h('code', { style: 'user-select:all;word-break:break-all' }, m[2]), ' ', h('button.btn.ghost.sm', { onclick: () => navigator.clipboard?.writeText(m[2]).then(() => toast('Copied', { timeout: 1200 })) }, 'Copy')] : x); })),
+        h('div.row', h('span.small', 'Ollama address'), url)].filter(Boolean));
       return;
     }
     const models = st.models;
@@ -141,7 +143,7 @@ function ollamaPanel(re, inUse) {
           models.some((m) => m.name === name) ? h('span.pill.ok', 'Installed') : h('button.btn.sm', { onclick: () => download(name) }, icon('download', { size: 13 }), 'Download')))),
         h('div.row', { style: 'margin-top:6px' }, custom, h('button.btn.sm', { onclick: () => download(custom.value.trim()) }, 'Download'))),
       bar, prog,
-      h('div.row', h('span.xs.muted', 'Address'), url)].filter(Boolean));
+      h('div.row', h('span.xs.muted', 'Address'), url, h('span.xs.muted', `connected via ${st.base || ol.base()}`))].filter(Boolean));
   };
   paint();
   return box;
