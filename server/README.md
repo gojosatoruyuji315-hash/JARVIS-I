@@ -5,7 +5,7 @@ A small Node server with no third-party dependencies. It turns JARVIS-X into a m
 | Area | What it does |
 |---|---|
 | Accounts | Sign-up and sign-in with scrypt-hashed passwords. Sessions live in an httpOnly SameSite cookie (HS256 JWT plus a revocable session row). Includes password reset by email, password change (signs out other devices), a device limit (`MAX_DEVICES`, default 20) and account deletion. |
-| AI | A proxy to Anthropic or any OpenAI-compatible API, with streaming and tool use. Keys never reach the browser. An optional fair-use cap (`AI_DAILY_LIMIT`, off by default) protects your bill. |
+| AI | A proxy to Anthropic or any OpenAI-compatible API, with streaming and tool use, plus **live web**: with Anthropic, the model gets Anthropic's web search + web fetch tools (`AI_WEB=on`, default; `basic` = free search only; `off`). Keys never reach the browser. An optional fair-use cap (`AI_DAILY_LIMIT`, off by default) protects your bill. |
 | Sync | Each user's workspace is stored AES-256-GCM-encrypted in SQLite, with optimistic versioning. Clients merge changes section by section. |
 | Live data | Google News RSS, stock quotes (Yahoo Finance delayed, or Finnhub), and ECB exchange rates, all cached. |
 | Code runner | Python, JavaScript, Java, C and C++ run in throwaway Docker containers with no network and capped CPU and memory. SQL runs in an isolated in-memory SQLite database. |
@@ -53,6 +53,7 @@ GET  /api/run/status                POST /api/run {lang, code, stdin?}
 POST /api/media/image {prompt, size}   POST /api/media/speech {text, voice}
 POST /api/media/replicate/predictions {model, input}   GET /api/media/replicate/predictions/:id
 GET  /api/music/search?source=itunes|youtube&q=
+GET  /api/web/search?q=             Free web search for the assistant (DuckDuckGo, Wikipedia fallback; signed in)
 GET  /api/web/read?url=             Reader view (signed in; public http/https only — private networks refused)
 GET/POST /api/keys  DELETE /api/keys/:id
 /v1/tasks · /v1/notes · /v1/memory · /v1/events · /v1/chat   (Authorization: Bearer jxk_…)

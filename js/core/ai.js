@@ -26,6 +26,7 @@ import { api, readSSE } from './api.js';
 import { sampleTools, anthropicTools, runTool } from './tools.js';
 import { bus } from './bus.js';
 import { license } from './license.js';
+import { liveWebOn, approxLocation, needsWeb, prefetchContext, sourcesMarkdown, webInstructions } from './liveweb.js';
 
 /* ============================================================ personalities */
 /** How JARVIS-X talks while you study (used automatically in study mode and the Teacher). */
@@ -65,6 +66,7 @@ export function buildSystemPrompt({ memoryLimit = 50, kbSnippets = [], tools = t
     facts && `Long-term memory about the user:\n${facts}`,
     kbSnippets.length && `Relevant knowledge-base excerpts:\n${kbSnippets.map((k) => `[${k.title}] ${k.text}`).join('\n')}`,
     teaching ? studyMode.lessonContext() : '',
+    tools && liveWebOn() ? webInstructions() : '',
     'Format answers in Markdown. If you are unsure, say so.',
   ].filter(Boolean).join('\n\n');
 }
@@ -94,28 +96,58 @@ const TOOL_LABEL = (n) => n.replace(/_/g, ' ');
 
 /**
  * Anthropic-format tool loop. `call({system, messages, tools, continuation})` → {content, stop_reason}.
- * Runs tool_use blocks locally and feeds results back, up to 6 rounds.
+ * Runs client tool_use blocks locally and feeds results back, up to 8 rounds. Server tools
+ * (web_search / web_fetch) run on Anthropic's side: their blocks are shown as live status,
+ * `pause_turn` is resumed, and every cited page is collected into a Sources list.
  */
 async function anthropicLoop(call, { system, messages, onText, signal }) {
   const msgs = messages.map((m) => ({ role: m.role, content: m.content }));
-  let shown = '';
-  for (let round = 0; round < 6; round++) {
+  let shown = ''; const sources = []; let searched = 0;
+  const status = (s) => onText?.(shown + `_${s}_`);
+  for (let round = 0; round < 8; round++) {
     if (signal?.aborted) throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
     const r = await call({ system, messages: msgs, tools: anthropicTools(), continuation: round > 0 });
-    const text = (r.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
-    const uses = (r.content || []).filter((b) => b.type === 'tool_use');
+    const blocks = r.content || [];
+    for (const b of blocks) {
+      if (b.type === 'server_tool_use') { searched++; status(b.name === 'web_fetch' ? `Reading ${String(b.input?.url || '').replace(/^https?:\/\//, '').slice(0, 60)}…` : `Searching the web for “${b.input?.query || ''}”…`); }
+      if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) for (const x of b.content.slice(0, 3)) sources.push({ title: x.title, url: x.url, weak: true });
+      if (b.type === 'web_fetch_tool_result' && b.content?.url) sources.push({ title: b.content.content?.title, url: b.content.url });
+      if (b.type === 'text' && Array.isArray(b.citations)) for (const c of b.citations) if (c.url) sources.push({ title: c.title, url: c.url });
+    }
+    const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('');
+    const uses = blocks.filter((b) => b.type === 'tool_use');
     if (text) shown = await reveal(text + (uses.length ? '\n\n' : ''), onText, signal, shown);
-    if (r.stop_reason !== 'tool_use' || !uses.length) return shown || '(No response)';
-    msgs.push({ role: 'assistant', content: r.content });
+    if (r.stop_reason === 'pause_turn') { msgs.push({ role: 'assistant', content: blocks }); continue; } // long web turn: resume as-is
+    if (r.stop_reason !== 'tool_use' || !uses.length) break;
+    msgs.push({ role: 'assistant', content: blocks });
     const results = [];
     for (const u of uses) {
-      onText?.(shown + `_${TOOL_LABEL(u.name)}…_`);
-      try { results.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(await runTool(u.name, u.input)).slice(0, 30000) }); }
-      catch (e) { results.push({ type: 'tool_result', tool_use_id: u.id, content: `Error: ${e.message}`, is_error: true }); }
+      status(u.name === 'search_web' ? `Searching the web for “${u.input?.query || ''}”…` : u.name === 'read_webpage' ? `Reading ${String(u.input?.url || '').replace(/^https?:\/\//, '').slice(0, 60)}…` : `${TOOL_LABEL(u.name)}…`);
+      try {
+        const out = await runTool(u.name, u.input);
+        if (u.name === 'search_web') { searched++; for (const x of (out.results || []).slice(0, 3)) sources.push({ title: x.title, url: x.url, weak: true }); }
+        if (u.name === 'read_webpage') sources.push({ title: out.title, url: out.url });
+        results.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(out).slice(0, 30000) });
+      } catch (e) { results.push({ type: 'tool_result', tool_use_id: u.id, content: `Error: ${e.message}`, is_error: true }); }
     }
     msgs.push({ role: 'user', content: results });
   }
+  if (!shown) return '(No response)';
+  // Sources: what the answer cited (or read) first; search hits only if nothing was cited
+  const strong = sources.filter((s) => !s.weak);
+  const list = strong.length ? strong : searched ? sources : [];
+  if (list.length && !/\*\*Sources\*\*/.test(shown)) { shown += sourcesMarkdown(list.filter((s) => !shown.includes(s.url))); onText?.(shown); }
   return shown;
+}
+
+let nativeWeb = true;
+/** Search first for engines without tool use, when the question needs fresh facts. */
+async function liveContext(messages, onText) {
+  if (!liveWebOn()) return null;
+  const q = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+  if (!needsWeb(q)) return null;
+  onText?.('_Searching the web…_');
+  try { return await prefetchContext(q.slice(0, 200)); } catch { return null; }
 }
 
 const SAMPLE_ERRORS = {
@@ -160,7 +192,8 @@ export const providers = {
         for await (const ev of readSSE(res)) { if (ev.error) throw new Error(ev.error); if (ev.text) { out += ev.text; onText?.(out); } }
         return out;
       }
-      return anthropicLoop((body) => api.post('/api/ai/chat', body, { signal }), { system, messages, onText, signal });
+      const web = liveWebOn(); const location = web ? approxLocation() : undefined;
+      return anthropicLoop((body) => api.post('/api/ai/chat', { ...body, web, location }, { signal }), { system, messages, onText, signal });
     },
   },
   anthropic: {
@@ -169,10 +202,16 @@ export const providers = {
     async run(messages, { system, signal, onText }) {
       const cfg = store.get('settings.ai');
       const url = (cfg.endpoint || 'https://api.anthropic.com').replace(/\/$/, '') + '/v1/messages';
-      return anthropicLoop(async (body) => {
+      // Live web: Anthropic's own search + fetch tools (falls back to JARVIS-X's free search tools if the account has them off)
+      const withWeb = (tools) => (liveWebOn() && nativeWeb ? [...(tools || []).filter((t) => t.name !== 'search_web' && t.name !== 'read_webpage'),
+        { type: 'web_search_20250305', name: 'web_search', max_uses: 5, user_location: { type: 'approximate', ...approxLocation() } },
+        { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 4, citations: { enabled: true }, max_content_tokens: 20000 }] : tools);
+      const self = { call: null };
+      return anthropicLoop(self.call = async (body) => {
         const res = await fetch(url, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-api-key': store.get('secrets.aiKey') || '', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-          body: JSON.stringify({ model: cfg.model || 'claude-sonnet-4-5', max_tokens: 2048, temperature: cfg.temperature, system: body.system, messages: body.messages, tools: body.tools }) });
+          body: JSON.stringify({ model: cfg.model || 'claude-sonnet-4-5', max_tokens: 2048, temperature: cfg.temperature, system: body.system, messages: body.messages, tools: withWeb(body.tools) }) });
         const j = await res.json().catch(() => ({}));
+        if (!res.ok && res.status === 400 && nativeWeb && /web_search|web_fetch|server tool|not enabled|user_location/i.test(j.error?.message || '')) { nativeWeb = false; return self.call(body); }
         if (!res.ok) throw new Error(`Anthropic ${res.status}: ${j.error?.message || res.statusText}`);
         return j;
       }, { system, messages, onText, signal });
@@ -184,17 +223,32 @@ export const providers = {
     async run(messages, { system, signal, onText }) {
       const cfg = store.get('settings.ai');
       const url = (cfg.endpoint || 'https://api.openai.com/v1').replace(/\/$/, '') + '/chat/completions';
+      const live = await liveContext(messages, onText);
       const res = await fetch(url, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', ...(store.get('secrets.aiKey') ? { Authorization: `Bearer ${store.get('secrets.aiKey')}` } : {}) },
-        body: JSON.stringify({ model: cfg.model || 'gpt-4o-mini', temperature: cfg.temperature, stream: true, messages: [{ role: 'system', content: system }, ...messages] }) });
+        body: JSON.stringify({ model: cfg.model || 'gpt-4o-mini', temperature: cfg.temperature, stream: true, messages: [{ role: 'system', content: system + (live ? `\n\n${live.text}\n\nAnswer from these live results and cite them as Markdown links.` : '') }, ...messages] }) });
       let out = '';
       for await (const t of sse(res, (j) => j.choices?.[0]?.delta?.content)) { out += t; onText?.(out); }
+      if (live && !/\*\*Sources\*\*/.test(out)) { out += sourcesMarkdown(live.results.slice(0, 5)); onText?.(out); }
       return out;
     },
   },
   local: {
     label: 'Offline engine',
     available: () => true,
-    async run(messages, { signal, onText }) { return reveal(localEngine(messages), onText, signal); },
+    async run(messages, { signal, onText }) {
+      const offline = localEngine(messages);
+      // Online mode without an AI engine: answer factual questions straight from the web
+      const q = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+      if (liveWebOn() && needsWeb(q) && /\bOffline engine\b|I've noted that/.test(offline)) {
+        const live = await liveContext(messages, onText).catch(() => null);
+        if (live?.results?.length) {
+          const top = live.results.slice(0, 4);
+          const body = `Here's what I found on the web:\n\n${top.map((r) => `- **${r.title}** — ${r.snippet}`).join('\n')}${sourcesMarkdown(top)}\n\n_Answered from live search results. Connect an AI engine in **Settings → AI** for full written answers._`;
+          return reveal(body, onText, signal);
+        }
+      }
+      return reveal(offline, onText, signal);
+    },
   },
 };
 
@@ -337,7 +391,7 @@ function planDay() {
 export function localEngine(messages) {
   const last = [...messages].reverse().find((m) => m.role === 'user')?.content?.trim() || '';
   const q = last.toLowerCase();
-  const note = '\n\n<sub>Offline engine. For open-ended answers, connect an AI provider in **Settings → AI**.</sub>';
+  const note = '\n\n_Offline engine. For open-ended answers, connect an AI provider in **Settings → AI**._';
 
   if (/^(hi|hello|hey|yo|good (morning|afternoon|evening)|greetings)\b/.test(q)) return greeting();
   if (/what can you do|^help$|capabilities|commands/.test(q)) return `Here's what I can do right now, even offline:\n\n- **Commands:** "add task …", "remind me in 10 minutes to …", "note …", "open github.com", "start pomodoro", "timer 5 min", "play music", "switch theme to silver"\n- **Memory:** "remember that …", "what do you remember?"\n- **Math:** "2^10 / 4", "solve 3x + 7 = 22", "x^2 - 5x + 6 = 0"\n- **Convert:** "10 km to miles", "100 usd to inr", "72 f to c"\n- **Study:** "explain recursion", "quiz me", "summarize: <text>"\n- **Writing:** "draft an email to …", "outline an essay on …", "tighten: <text>"\n- **Code:** paste code and ask "review this"\n- **Planning:** "plan my day", "brainstorm ideas for …"`;

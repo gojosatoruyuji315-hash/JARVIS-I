@@ -54,6 +54,8 @@ export const config = {
     openaiBase: env('OPENAI_BASE_URL', 'https://api.openai.com/v1').replace(/\/$/, ''),
     openaiModel: env('OPENAI_MODEL', 'gpt-4o-mini'),
     maxTokens: num('AI_MAX_TOKENS', 2048),
+    /** Live web for the assistant: Anthropic's web search + web fetch tools ('on'), or only the free built-in search ('basic'), or 'off'. */
+    web: env('AI_WEB', 'on'),
   },
 
   // Fair-use cap on server-paid AI requests per user per day (0 = unlimited)

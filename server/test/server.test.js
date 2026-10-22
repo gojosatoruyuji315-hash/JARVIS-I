@@ -108,6 +108,19 @@ test('reader proxy: signed-in only, blocks private networks, extracts article te
   assert.ok(!JSON.stringify(r.data).includes('evil') && !JSON.stringify(r.data).includes('Menu'));
 });
 
+test('live web: native Anthropic web tools with citations; free search endpoint', async () => {
+  const c = new Client(); await c.req('POST', '/api/auth/register', { email: 'web@example.com', password: 'supersecret1', name: 'W' });
+  const tools = [{ name: 'add_task', description: 'x', input_schema: { type: 'object', properties: {} } }, { name: 'search_web', description: 'x', input_schema: { type: 'object', properties: {} } }];
+  const r = await c.req('POST', '/api/ai/chat', { system: 's', messages: [{ role: 'user', content: 'latest ISRO news?' }], tools, web: true, location: { timezone: 'Asia/Kolkata', country: 'IN' } });
+  assert.equal(r.status, 200);
+  assert.ok(r.data.content.some((b) => b.type === 'server_tool_use' && b.name === 'web_search'));
+  assert.ok(r.data.content.some((b) => b.type === 'text' && b.citations?.[0]?.url === 'https://www.isro.gov.in/launch'));
+  const st = await c.req('GET', '/api/ai/status'); assert.equal(st.data.web, 'native');
+  const s = await c.req('GET', '/api/web/search?q=' + encodeURIComponent('bengaluru weather'));
+  assert.equal(s.status, 200); assert.equal(s.data.results.length, 1);
+  assert.deepEqual(s.data.results[0], { title: 'Bengaluru weather today', url: 'https://example.org/weather', snippet: 'Sunny, 29°C with light winds.' });
+});
+
 test('password reset flow revokes old sessions', async () => {
   const c = new Client(); await c.req('POST', '/api/auth/register', { email: 'reset@example.com', password: 'password123' });
   assert.equal((await c.req('POST', '/api/auth/forgot', { email: 'reset@example.com' })).status, 200);

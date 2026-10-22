@@ -13,6 +13,14 @@
 | Themes | Arc Blue, Midnight Silver, Daylight Lab, Aurum, Nebula, Obsidian Prime · custom accent color |
 | Command palette, Smart search | `Ctrl+P` / `Ctrl+K`, fully keyboard driven |
 
+## Live web (the AI goes online)
+With **Live web** on (top-bar **LIVE WEB** chip, the Assistant's *Live web* button, or Settings → AI), the assistant looks things up on the real internet before answering anything current or factual — news, prices, scores, weather, people in office, release dates — and answers with the actual information plus a **Sources** list.
+- **JARVIS-X server with an Anthropic key, or your own Anthropic key:** Claude uses Anthropic's own *web search* and *web fetch* tools — it searches, reads pages and cites them (searches are billed by Anthropic at about $10 per 1,000). If web search is switched off for the API account, JARVIS-X falls back to its free search automatically.
+- **Other engines:** JARVIS-X's free tools — *search_web* (DuckDuckGo results through your server; DuckDuckGo instant answers + Wikipedia in the browser) and *read_webpage* (the server's reader; Wikipedia anywhere). OpenAI-compatible keys get the search results handed to them first.
+- **No AI engine at all:** factual questions are answered straight from live search results, with sources.
+- You see what it's doing while it works ("Searching the web for …", "Reading …").
+- Inside the Claude viewer pages can't go online, so the chip shows OFFLINE and offers the full version.
+
 ## Internet (online mode)
 A browser built into JARVIS-X, in the sidebar under **Internet**:
 - **Tabs** with back, forward, reload, start page, bookmarks (☆) and history.

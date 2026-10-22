@@ -95,6 +95,7 @@ function AI(el) {
     } }, 'Test AI'), result),
     row('Creativity', `Temperature ${a.temperature} (your-key engines)`, h('input', { type: 'range', min: 0, max: 1.2, step: 0.1, value: a.temperature, 'aria-label': 'Temperature', onchange: (e) => store.set('settings.ai.temperature', +e.target.value) })),
     row('Conversation memory', `Last ${a.maxContext} messages are sent with each request`, h('input.input', { type: 'number', min: 2, max: 60, value: a.maxContext, style: 'width:80px', onchange: (e) => store.set('settings.ai.maxContext', +e.target.value) })),
+    row('Live web', 'The AI searches the internet and reads pages for current information, and shows its sources', toggle('', a.web !== false, (x) => store.set('settings.ai.web', x))),
     row(h('span', 'Personality ', featureBadge('ai.personalities')), null, select(a.personality, Object.entries(PERSONALITIES).map(([k, p]) => [k, p.label]), (v) => { if (PERSONALITIES[v].plan !== 'free' && !gate('ai.personalities')) { re(); return; } store.set('settings.ai.personality', v); re(); }, 'Personality')),
     a.personality === 'custom' ? row('Custom persona', 'Describe how JARVIS-X should behave', h('textarea.textarea', { value: a.customPersona || '', placeholder: 'e.g. You are a calm British butler who loves astronomy…', onchange: (e) => store.set('settings.ai.customPersona', e.target.value) })) : null)));
 }

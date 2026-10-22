@@ -137,3 +137,5 @@ kbd {
     animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important;
   }
 }
+.live-chip { cursor: pointer; background: none; color: inherit; font: inherit; }
+.live-chip.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); box-shadow: var(--glow-soft); }

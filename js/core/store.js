@@ -35,7 +35,7 @@ export function defaultState() {
       voice: { rate: 1, pitch: 1, profile: 'default', voiceURI: '', autoSpeak: false, wakeWord: false, wakePhrase: 'jarvis', lang: 'en-US' },
       privacy: { privacyMode: false, saveHistory: true, analytics: true },
       security: { lockEnabled: false, timeoutMin: 15, passHash: null, biometric: false },
-      ai: { provider: 'auto', keyProvider: 'anthropic', tier: 'default', endpoint: '', model: '', personality: 'sweet', temperature: 0.7, maxContext: 16 },
+      ai: { provider: 'auto', keyProvider: 'anthropic', tier: 'default', endpoint: '', model: '', personality: 'sweet', web: true, temperature: 0.7, maxContext: 16 },
       watchlist: ['^NSEI', '^BSESN', 'AAPL', 'BTC-USD'],
       newsTopic: '',
       sync: true,

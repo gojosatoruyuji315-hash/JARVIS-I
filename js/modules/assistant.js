@@ -119,7 +119,11 @@ export default {
       const md = c.messages.map((m) => `**${m.role === 'user' ? store.get('profile.name') : 'JARVIS-X'}** (${fmt.dt(m.ts)})\n\n${m.content}`).join('\n\n---\n\n');
       ({ md: exportMarkdown, pdf: exportPDF, doc: exportWord })[kind](c.title, md);
     };
+    const webBtn = h('button.btn.sm', { title: 'Let the AI search the internet for current information', onclick: async () => { const { platform } = await import('../core/platform.js'); if (!platform.directNetwork) { const m = await import('../core/fullversion.js'); return m.showOverlay({ reason: 'Live web needs a normal browser tab — the Claude viewer keeps pages offline.' }); } store.set('settings.ai.web', store.get('settings.ai.web') === false); paintWeb(); } });
+    const paintWeb = () => { import('../core/liveweb.js').then(({ liveWebOn }) => { const on = liveWebOn(); webBtn.classList.toggle('primary', on); webBtn.replaceChildren(icon('globe', { size: 14 }), on ? 'Live web: on' : 'Live web: off'); }); };
+    paintWeb();
     ctx.setActions(
+      webBtn,
       h('button.btn.ghost.sm', { onclick: () => exportConv('md'), title: 'Export as Markdown' }, icon('download'), 'MD'),
       h('button.btn.ghost.sm', { onclick: () => exportConv('pdf'), title: 'Export as PDF' }, 'PDF', featureBadge('export.docs')),
       h('button.btn.ghost.sm', { onclick: () => exportConv('doc'), title: 'Export as Word (.docx)' }, 'Word', featureBadge('export.docs')),

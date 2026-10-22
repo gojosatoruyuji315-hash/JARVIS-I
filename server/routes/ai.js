@@ -13,6 +13,21 @@ import { requireUser } from '../lib/auth.js';
 
 const A = config.ai;
 
+/** Anthropic server tools that give the model real, live web access (search + read pages). */
+let nativeWebOk = true; // flips off if the account has web search disabled (400), then the free search is used
+const webTools = (loc) => [
+  { type: 'web_search_20250305', name: 'web_search', max_uses: 5, ...(loc ? { user_location: loc } : {}) },
+  { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 4, citations: { enabled: true }, max_content_tokens: 20000 },
+];
+function userLocation(l) {
+  if (!l || typeof l !== 'object') return null;
+  const out = { type: 'approximate' };
+  if (typeof l.timezone === 'string' && /^[A-Za-z_]+\/[A-Za-z_\/+-]+$/.test(l.timezone)) out.timezone = l.timezone;
+  if (typeof l.country === 'string' && /^[A-Z]{2}$/.test(l.country)) out.country = l.country;
+  if (typeof l.city === 'string' && l.city.length < 60) out.city = l.city;
+  return Object.keys(out).length > 1 ? out : null;
+}
+
 function quota(userId) {
   const max = config.aiDailyLimit || null;
   const used = db.prepare('SELECT ai FROM usage WHERE user_id = ? AND day = ?').get(userId, today())?.ai ?? 0;
@@ -46,7 +61,7 @@ async function upstream({ system, messages, tools, stream }, signal) {
     return fetch('https://api.anthropic.com/v1/messages', { method: 'POST', signal, headers: { 'Content-Type': 'application/json', 'x-api-key': A.anthropicKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: A.anthropicModel, max_tokens: A.maxTokens, system, messages, ...(tools?.length ? { tools } : {}), stream: !!stream }) });
   }
-  const t = toOpenAI(system, messages, tools);
+  const t = toOpenAI(system, messages, (tools || []).filter((x) => !x.type));
   return fetch(`${A.openaiBase}/chat/completions`, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${A.openaiKey}` },
     body: JSON.stringify({ model: A.openaiModel, max_tokens: A.maxTokens, messages: t.messages, tools: t.tools, stream: !!stream }) });
 }
@@ -54,7 +69,7 @@ async function upstream({ system, messages, tools, stream }, signal) {
 export function aiRoutes(r) {
   r.get('/api/ai/status', async (req, res) => {
     const a = req.auth;
-    return json(res, { configured: !!A.provider, provider: A.provider || null, model: A.provider === 'anthropic' ? A.anthropicModel : A.provider === 'openai' ? A.openaiModel : null, quota: a ? quota(a.user.id) : null });
+    return json(res, { web: A.web === 'off' ? 'off' : A.provider === 'anthropic' && A.web === 'on' && nativeWebOk ? 'native' : 'basic', configured: !!A.provider, provider: A.provider || null, model: A.provider === 'anthropic' ? A.anthropicModel : A.provider === 'openai' ? A.openaiModel : null, quota: a ? quota(a.user.id) : null });
   });
 
   r.post('/api/ai/chat', async (req, res) => {
@@ -69,10 +84,19 @@ export function aiRoutes(r) {
     if (!body.continuation) count(user.id);
 
     const ctl = new AbortController(); req.on('close', () => ctl.abort());
-    const up = await upstream({ system: String(body.system || '').slice(0, 60000), messages: body.messages, tools: body.tools, stream: !!body.stream && !body.tools?.length }, ctl.signal);
+    const clientTools = Array.isArray(body.tools) ? body.tools.filter((t) => t && !t.type) : [];
+    const wantNative = body.web && A.web === 'on' && A.provider === 'anthropic' && nativeWebOk;
+    const tools = wantNative ? [...clientTools.filter((t) => !['web_search', 'web_fetch', 'search_web', 'read_webpage'].includes(t.name)), ...webTools(userLocation(body.location))] : clientTools;
+    const args = { system: String(body.system || '').slice(0, 60000), messages: body.messages, tools, stream: !!body.stream && !tools.length };
+    let up = await upstream(args, ctl.signal);
+    if (!up.ok && wantNative && up.status === 400) {
+      const t = await up.text();
+      if (/web_search|web_fetch|server tool|not enabled/i.test(t)) { nativeWebOk = false; up = await upstream({ ...args, tools: clientTools }, ctl.signal); res.setHeader('X-JX-Web', 'basic'); }
+      else throw new HttpError(502, `AI provider error (400): ${t.slice(0, 300)}`);
+    }
     if (!up.ok) { const t = await up.text(); throw new HttpError(502, `AI provider error (${up.status}): ${t.slice(0, 300)}`); }
 
-    if (!body.stream || body.tools?.length) {
+    if (!args.stream) {
       const j = await up.json();
       return json(res, A.provider === 'anthropic' ? { content: j.content, stop_reason: j.stop_reason } : fromOpenAI(j));
     }

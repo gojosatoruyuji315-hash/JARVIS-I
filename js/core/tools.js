@@ -13,6 +13,7 @@ import { uid, todayKey, fmt, toast } from './dom.js';
 import { addReminder, timerService } from './scheduler.js';
 import { evaluate } from './mathx.js';
 import { plugins } from './plugins.js';
+import { WEB_TOOLS, liveWebOn } from './liveweb.js';
 import { platform } from './platform.js';
 
 const S = (properties, required = []) => ({ type: 'object', properties, required });
@@ -106,7 +107,7 @@ export const TOOLS = [
 ];
 
 /** Tools in the Claude viewer `sample` format. */
-const allTools = () => [...TOOLS.filter((t) => (!t.needsNetwork || platform.hasNetwork)), ...plugins.tools()];
+const allTools = () => [...TOOLS.filter((t) => (!t.needsNetwork || platform.hasNetwork)), ...(liveWebOn() ? WEB_TOOLS : []), ...plugins.tools()];
 export function sampleTools(max = 64) {
   return allTools().slice(0, max).map((t) => ({ name: t.name, description: t.description, ...(t.schema ? { inputSchema: t.schema } : {}),
     execute: async (input) => { const r = await t.run(input || {}); bus.emit('assistant:tool', { name: t.name, input }); return r; } }));

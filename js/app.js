@@ -96,7 +96,11 @@ function renderDock(dock) {
 function renderTop(top) {
   clear(top);
   const clock = h('span.mono');
-  const net = h('span.chip.hide-sm', h('i.dot', { class: navigator.onLine ? '' : 'off' }), navigator.onLine ? 'ONLINE' : 'OFFLINE');
+  const webOn = store.get('settings.ai.web') !== false;
+  const canWeb = platform.directNetwork && navigator.onLine;
+  const net = h('button.chip.hide-sm.live-chip', { class: canWeb && webOn ? 'on' : '', title: !canWeb ? 'Offline — the AI answers from what it knows' : webOn ? 'Live web is ON — the AI searches the internet for current information. Click to turn off.' : 'Live web is OFF — click so the AI can search the internet', 'aria-pressed': String(canWeb && webOn),
+    onclick: () => { if (!canWeb) { if (platform.isHost) import('./core/fullversion.js').then((m) => m.showOverlay({ reason: 'Live web needs a normal browser tab — the Claude viewer keeps pages offline.' })); return; } store.set('settings.ai.web', !webOn); renderTop($('.jx-top')); toast(!webOn ? 'Live web on — the AI will look things up online.' : 'Live web off — the AI answers from what it knows.', { timeout: 2500 }); } },
+    h('i.dot', { class: canWeb ? '' : 'off' }), !canWeb ? 'OFFLINE' : webOn ? 'LIVE WEB' : 'ONLINE');
   const q = quota();
   const user = license.user();
   append(top, [
@@ -294,7 +298,7 @@ function onboarding() {
 
 /* ------------------------------------------------- public plugin/debug API */
 window.JX = {
-  version: '2.7.0', bus, store, router, voice, ask, license, providers, platform, sync,
+  version: '2.8.0', bus, store, router, voice, ask, license, providers, platform, sync,
   /** Plugin API — see js/core/plugins.js and docs/PLUGINS.md. */
   plugins,
 };

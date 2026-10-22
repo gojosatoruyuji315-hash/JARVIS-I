@@ -1,6 +1,7 @@
 /**
  * Reader proxy for the Internet app (server mode):
  *   GET /api/web/read?url=https://…   → { url, title, site, image, blocks: [{t:'h'|'p'|'li'|'q', x}] }
+ *   GET /api/web/search?q=…           → { results: [{ title, url, snippet }] }  (free search for the assistant)
  *
  * Lets the in-app browser show any article as clean, readable text even when the site
  * refuses to be framed. Signed-in users only, rate-limited, public http(s) addresses only
@@ -56,7 +57,47 @@ export function extract(html, url) {
   return { url, title, site, image: image || null, blocks };
 }
 
+/** Parse DuckDuckGo's no-JavaScript results page. */
+export function parseDDG(html) {
+  const out = [];
+  const blocks = html.split(/<div[^>]+class="[^"]*\bresult\b[^"]*"/i).slice(1);
+  for (const b of blocks) {
+    const a = b.match(/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i); if (!a) continue;
+    let url = decode(a[1]);
+    const uddg = url.match(/[?&]uddg=([^&]+)/); if (uddg) url = decodeURIComponent(uddg[1]);
+    if (url.startsWith('//')) url = 'https:' + url;
+    if (!/^https?:\/\//.test(url) || /duckduckgo\.com\/y\.js|\/\/duckduckgo\.com\/\?/.test(url)) continue; // skip ads
+    const sn = b.match(/class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/(?:a|div)>/i);
+    out.push({ title: text(a[2]), url, snippet: sn ? text(sn[1]).slice(0, 400) : '' });
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+const searchCache = new Map();
+
 export function webRoutes(r) {
+  r.get('/api/web/search', async (req, res) => {
+    requireUser(req);
+    rateLimit(`wsearch:${clientIp(req)}`, 40, 60e3);
+    const q = (req.query.get('q') || '').trim().slice(0, 200);
+    if (!q) throw new HttpError(400, 'q is required');
+    const hit = searchCache.get(q.toLowerCase()); if (hit && Date.now() - hit.t < 10 * 60e3) return json(res, hit.v);
+    let results = [];
+    try {
+      const r1 = await fetch('https://html.duckduckgo.com/html/', { method: 'POST', signal: AbortSignal.timeout(10_000), headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded', 'Accept-Language': 'en-IN,en;q=0.9' }, body: `q=${encodeURIComponent(q)}&kl=in-en` });
+      if (r1.ok) results = parseDDG(await r1.text());
+    } catch { /* fall back below */ }
+    if (!results.length) {
+      try {
+        const j = await (await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=6&format=json`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) })).json();
+        results = (j.query?.search || []).map((x) => ({ title: x.title, url: `https://en.wikipedia.org/wiki/${encodeURIComponent(x.title.replace(/ /g, '_'))}`, snippet: text(x.snippet) }));
+      } catch { /* none */ }
+    }
+    const v = { q, results, source: results.length && !results[0].url.includes('wikipedia.org') ? 'duckduckgo' : 'wikipedia' };
+    searchCache.set(q.toLowerCase(), { t: Date.now(), v });
+    return json(res, v);
+  });
+
   r.get('/api/web/read', async (req, res) => {
     requireUser(req);
     rateLimit(`read:${clientIp(req)}`, 30, 60e3);
