@@ -107,8 +107,8 @@ export function modal({ title, body, actions = [], wide = false, onClose, titleI
   const box = h('div.modal.glass', { role: 'dialog', 'aria-modal': 'true', 'aria-label': title || 'Dialog', class: wide ? 'wide' : '' },
     title && h('h3', titleIcon && icon(titleIcon), title),
     body instanceof Node ? body : h('div.small.dim', body ?? ''),
-    actions.length && h('div.modal-actions', actions.map((a) =>
-      h('button.btn', { class: a.kind || '', onclick: () => a.onClick ? a.onClick(close) : close() }, a.icon && icon(a.icon), a.label))),
+    actions.length ? h('div.modal-actions', actions.map((a) =>
+      h('button.btn', { class: a.kind || '', onclick: () => a.onClick ? a.onClick(close) : close() }, a.icon && icon(a.icon), a.label))) : null,
   );
   const back = h('div.modal-backdrop', { onmousedown: (e) => { if (e.target === back && dismissable) close(); } }, box);
   $('#jx-overlays').append(back);
@@ -130,9 +130,9 @@ export function confirmDialog(message, { title = 'Confirm', okLabel = 'Confirm',
   });
 }
 /** Promise-based text prompt. Resolves to string or null. */
-export function promptDialog(title, { value = '', placeholder = '', label = '', multiline = false } = {}) {
+export function promptDialog(title, { value = '', placeholder = '', label = '', multiline = false, type = 'text' } = {}) {
   return new Promise((resolve) => {
-    const inp = multiline ? h('textarea.textarea', { placeholder }) : h('input.input', { placeholder });
+    const inp = multiline ? h('textarea.textarea', { placeholder }) : h('input.input', { placeholder, type });
     inp.value = value;
     let m;
     const ok = () => m.close(inp.value.trim());

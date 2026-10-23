@@ -7,6 +7,8 @@ JARVIS-X is a browser-based AI operating system. It's a holographic command cent
 - a file manager, automation and a music player that searches and streams real music
 - a plugin store: image and video generation, a Godot game-dev kit, translation, QR codes, finance and more
 
+**Accounts.** On your own website, people can sign up and sign in with their email and their progress is saved to their account across devices (free Supabase project; see [docs/ACCOUNTS.md](docs/ACCOUNTS.md)).
+
 **Everything is free.** There is one plan with every feature, no payments and no limits (a server owner can set an optional fair-use cap on AI requests).
 
 The front end is plain HTML, CSS and ES modules with no build step. The server is plain Node with no npm dependencies.
@@ -19,8 +21,8 @@ The front end is plain HTML, CSS and ES modules with no build step. The server i
 |---|---|---|---|
 | Start | `npm start` | Open the artifact link | Any static host, e.g. `python3 -m http.server` |
 | AI | Your server's Anthropic or OpenAI key, with tools | **Claude, on the viewer's own account**, with tools | Built-in AI in the browser (no key), Ollama, your own key, or the offline engine |
-| Accounts | Email and password accounts, sessions, devices, password reset | Your claude.ai identity | None (single person) |
-| Sync | Encrypted server vault, merged across devices | Your private Claude data store, live across devices | This browser only (encrypted) |
+| Accounts | Email and password accounts, sessions, devices, password reset | Your claude.ai identity | Email sign up / sign in with saved progress (Supabase — docs/ACCOUNTS.md), or none |
+| Sync | Encrypted server vault, merged across devices | Your private Claude data store, live across devices | Your account (with accounts on), otherwise this browser only |
 | Music | Search YouTube, Audius, Internet Archive, live radio and iTunes previews — no keys needed — plus the AI Composer | AI Composer, your files and generative tracks; **Full internet** opens the full version for search | Same as server |
 | Plugins | All 19 | 16 of 19 — Image Studio and Video Studio switch to AI-painted pictures; only Dictionary, Wikipedia and GitHub need the web | All 19 (Video Studio's optional AI-model mode needs the server) |
 | Internet | Direct | The viewer keeps pages offline — the **Full internet** button opens the full version (hosted or on your computer) and carries your data across | Direct |

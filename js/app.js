@@ -34,6 +34,9 @@ import { platform } from './core/platform.js';
 import { sync } from './core/sync.js';
 /** Captured before the router rewrites the hash: data carried from the Claude viewer. */
 const CARRIED = location.hash.startsWith('#jx-import=') ? location.hash : null;
+// Links from account emails (confirm address / reset password) arrive as #access_token=… or #error=…
+const AUTH_LINK = /(^#|&)(access_token|error_description|error_code)=/.test(location.hash) ? location.hash : null;
+if (AUTH_LINK) { try { history.replaceState(null, '', location.pathname + location.search); } catch { /* */ } }
 import { refreshFX } from './core/mathx.js';
 
 /* ------------------------------------------------------------------ shell */
@@ -113,7 +116,9 @@ function renderTop(top) {
     overlayChip(),
     syncChip(),
     q.max !== Infinity ? h('span.pill.hide-sm', { title: 'AI requests left today' }, `${Math.max(0, q.left)}/${q.max} AI`) : null,
-    h('button.btn.ghost.icon', { onclick: () => router.open('account'), title: user ? (user.email || user.name || 'Account') : platform.isServer ? 'Sign in' : 'Profile', 'aria-label': 'Account' }, user?.avatarUrl ? h('img', { src: user.avatarUrl, alt: '', style: 'width:22px;height:22px;border-radius:50%' }) : icon('user')),
+    !user && license.accountsAvailable
+      ? h('button.btn.sm', { onclick: () => import('./modules/account.js').then((m) => m.authDialog({ mode: 'login' })), title: 'Sign in or create an account to save your progress' }, icon('user', { size: 14 }), 'Sign in')
+      : h('button.btn.ghost.icon', { onclick: () => router.open('account'), title: user ? (user.email || user.name || 'Account') : 'Profile', 'aria-label': 'Account' }, user?.avatarUrl ? h('img', { src: user.avatarUrl, alt: '', style: 'width:22px;height:22px;border-radius:50%' }) : user ? h('span.avatar-letter', (user.name || user.email || '?')[0].toUpperCase()) : icon('user')),
     h('button.btn.ghost.icon', { onclick: () => lockNow(), title: 'Lock (Alt+L)', 'aria-label': 'Lock' }, icon('lock')),
     h('button.btn.ghost.icon', { onclick: () => powerOff(), title: 'Shut down', 'aria-label': 'Shut down' }, icon('power')),
   ]);
@@ -201,6 +206,7 @@ function wire() {
   bus.on('plugins:change', () => renderDock($('.jx-dock')));
   bus.on('studymode:change', () => { renderDock($('.jx-dock')); renderTop($('.jx-top')); });
   bus.on('studymode:tick', () => $('.study-chip')?._tick?.());
+  bus.on('auth:change', () => renderTop($('.jx-top')));
   bus.on('platform:ready', () => { if (platform.isHost) { sync.start(); if (!store.get('profile.name') || store.get('profile.name') === 'Operator') { const n = platform.host.me?.name; if (n) store.set('profile.name', n.split(' ')[0]); } } renderTop($('.jx-top')); });
   bus.on('ai:usage', () => renderTop($('.jx-top')));
   bus.on('routine:run', async ({ id }) => { const { runRoutine } = await import('./modules/automation.js'); runRoutine(id); });
@@ -258,7 +264,7 @@ async function main() {
   // Wake word (experimental)
   if (store.get('settings.voice.wakeWord') && !platform.isHost) voice.startWakeWord((rest) => (rest ? askAndShow(rest, { speak: true }) : startListening()));
 
-  if (!store.get('seen.onboarding') && !CARRIED) onboarding();
+  if (!store.get('seen.onboarding') && !CARRIED && !AUTH_LINK) onboarding();
 
   plugins.init();
   initStudyMode();
@@ -274,21 +280,40 @@ async function handleHashActions() {
   const hash = location.hash.slice(1);
   const clearHash = () => { try { history.replaceState(null, '', location.pathname + location.search); } catch { /* */ } };
   if (CARRIED) consumeImport(CARRIED);
+  else if (AUTH_LINK && license.isCloud) await handleAuthLink(AUTH_LINK);
   else if (hash.startsWith('billing-')) clearHash();
   else if (hash.startsWith('reset-')) { clearHash(); router.open('account', { reset: hash.slice(6) }); }
   else if (hash && MODULES.some((m) => m.id === hash)) router.open(hash);
 }
 
+/** Link from an account email: confirm address or reset password. */
+async function handleAuthLink(link) {
+  const cloud = await import('./core/cloud.js');
+  const r = await cloud.consumeRedirect(link);
+  if (r.error) { toast(r.error, { type: 'error', timeout: 9000 }); router.open('account'); }
+  else if (r.type === 'recovery') router.open('account', { recovery: true });
+  else { store.set('seen.onboarding', true); $('.modal-backdrop')?.remove(); toast(`Email confirmed — you're signed in${r.user?.name ? ', ' + r.user.name : ''}. Your progress now saves to your account.`, { type: 'ok', timeout: 7000 }); router.open('account'); }
+}
+// The same tab can receive the link too (e.g. pasted into the address bar)
+addEventListener('hashchange', () => {
+  if (!/(^#|&)(access_token|error_description|error_code)=/.test(location.hash) || !license.isCloud) return;
+  const link = location.hash; try { history.replaceState(null, '', location.pathname + location.search); } catch { /* */ }
+  handleAuthLink(link);
+});
+
 /** First-run setup: name, theme, notifications. */
 function onboarding() {
   const name = h('input.input', { value: license.user()?.name || '', placeholder: 'What should I call you?', 'aria-label': 'Your name' });
   const skins = h('div.row', SKINS.map((k) => h('button.btn.sm', { onclick: () => bus.emit('theme:set', { skin: k.id }) }, h('i', { style: `width:12px;height:12px;border-radius:50%;background:${k.colors[2]};display:inline-block` }), k.name)));
-  const where = { server: 'Sign in from the account menu to sync across devices and unlock your plan.', host: 'You\'re running inside Claude: answers come from Claude and your data syncs to your Claude account.', standalone: 'Everything stays in this browser, encrypted. Add an AI key in Settings → AI for full answers.' }[platform.mode];
+  const accounts = license.accountsAvailable && !license.user();
+  const where = license.isCloud ? 'Create a free account to save your progress and pick up where you left off on any device — or just get started; your data stays in this browser until you sign in.' : { server: 'Sign in from the account menu to sync across devices and unlock your plan.', host: 'You\'re running inside Claude: answers come from Claude and your data syncs to your Claude account.', standalone: 'Everything stays in this browser, encrypted. Add an AI key in Settings → AI for full answers.' }[platform.mode];
   modal({ title: 'Welcome to JARVIS-X', titleIcon: 'hud', dismissable: false, body: h('div.stack',
     h('label.field', 'Your name', name), h('div.field.xs.dim', 'Theme'), skins,
     h('div.small.dim', where),
     h('div.small.dim', 'Hold ', h('kbd', 'Space'), ' to talk · ', h('kbd', 'Ctrl K'), ' search · ', h('kbd', 'Ctrl P'), ' every action')),
-  actions: [{ label: 'Get started', kind: 'primary', onClick: (close) => {
+  actions: [...(accounts ? [{ label: 'Sign in', kind: 'ghost', onClick: (close) => { store.set('seen.onboarding', true); close(); import('./modules/account.js').then((m) => m.authDialog({ mode: 'login' })); } },
+    { label: 'Create account', kind: '', onClick: (close) => { if (name.value.trim()) store.set('profile.name', name.value.trim().slice(0, 60)); store.set('seen.onboarding', true); close(); import('./modules/account.js').then((m) => m.authDialog({ mode: 'register', name: name.value.trim() })); } }] : []),
+    { label: accounts ? 'Continue without account' : 'Get started', kind: 'primary', onClick: (close) => {
     if (name.value.trim()) store.set('profile.name', name.value.trim().slice(0, 60));
     store.set('seen.onboarding', true); close();
     import('./core/scheduler.js').then((m) => m.requestNotificationPermission());
@@ -298,7 +323,7 @@ function onboarding() {
 
 /* ------------------------------------------------- public plugin/debug API */
 window.JX = {
-  version: '2.10.0', bus, store, router, voice, ask, license, providers, platform, sync,
+  version: '2.11.0', bus, store, router, voice, ask, license, providers, platform, sync,
   /** Plugin API — see js/core/plugins.js and docs/PLUGINS.md. */
   plugins,
 };

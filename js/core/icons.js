@@ -54,6 +54,7 @@ const P = {
   calc: 'M6 3h12v18H6zM8 6h8v3H8zM8 12h2M12 12h2M16 12v0M8 15h2M12 15h2M8 18h2M12 18h2M16 15v3',
   rocket: 'M14 4c3-1 6 0 6 0s1 3 0 6l-7 7-6-6zM7 11l-3 1 2 3M13 17l-1 3-3-2M15 9a1 1 0 100-.01',
   grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
   send: 'M4 12l16-8-6 16-3-7z',
   copy: 'M8 8h12v12H8zM4 16V4h12',
   download: 'M12 4v12M7 11l5 5 5-5M4 20h16',

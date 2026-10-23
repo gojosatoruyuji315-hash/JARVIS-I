@@ -4,6 +4,8 @@
  *
  *  server  PUT/GET /api/sync with optimistic versions (409 → merge → retry).
  *          Pulls on focus and every 60 s, so Developer-API writes appear too.
+ *  cloud   Website accounts (Supabase): one row per person, same optimistic
+ *          versions as the server. Pulls on focus and every 60 s.
  *  host    The Claude viewer's private per-user store: one document per section
  *          at data/users/<id>/<section>, live across devices via onSnapshot.
  * Secrets (API keys) and device-local bookkeeping never leave the device.
@@ -15,6 +17,7 @@ import { platform } from './platform.js';
 import { license } from './license.js';
 import { api } from './api.js';
 import { debounce } from './dom.js';
+import * as cloud from './cloud.js';
 
 const DOC_LIMIT = 240 * 1024; // stay under the 256 KiB document cap
 const status = { state: 'off', last: null, error: null, target: null };
@@ -65,6 +68,37 @@ const serverSync = {
     finally { this.pushing = false; if (this.again) { this.again = false; this.push(); } }
   },
 };
+
+/* ------------------------------------------------------------------- cloud */
+const cloudSync = {
+  version: null, pushing: false, again: false,
+  async pull() {
+    const r = await cloud.loadVault();
+    this.version = r?.version ?? null;
+    // First sign-in on this device: the account's saved progress wins over whatever is in this browser
+    const uid = license.user()?.id; let seen = null; try { seen = localStorage.getItem('jx-cloud-synced'); } catch { /* */ }
+    if (r?.state && seen !== uid) {
+      const rts = r.state.meta?.ts || {}; const all = {}; const ts = {};
+      for (const [k, v] of Object.entries(r.state)) if (!LOCAL_ONLY.has(k) && v != null) { all[k] = v; ts[k] = Math.max(rts[k] || 0, store.get(['meta', 'ts', k]) || 0) + 1; }
+      store.applyRemote(all, ts); bus.emit('theme:apply');
+    } else mergeRemote(r?.state);
+    try { localStorage.setItem('jx-cloud-synced', uid); } catch { /* */ }
+    if (!r || localIsNewer(r.state)) await this.push();
+    else setStatus('synced');
+  },
+  async push() {
+    if (this.pushing) { this.again = true; return; }
+    this.pushing = true; setStatus('syncing');
+    try {
+      for (let i = 0; i < 4; i++) {
+        try { const r = await cloud.saveVault({ ...snapshotSections(), meta: { ts: store.get('meta.ts') } }, this.version); this.version = r.version; setStatus('synced'); break; }
+        catch (e) { if (e.status !== 409) throw e; this.version = e.current?.version ?? null; mergeRemote(e.current?.state); }
+      }
+    } catch (e) { setStatus('error', /jarvis_vault|relation|schema cache/i.test(e.message) ? 'The account database isn\'t set up yet — run supabase/setup.sql (see docs/ACCOUNTS.md).' : e.message); }
+    finally { this.pushing = false; if (this.again) { this.again = false; this.push(); } }
+  },
+};
+const remoteSync = () => (platform.isServer ? serverSync : license.isCloud && license.user() ? cloudSync : null);
 
 /* -------------------------------------------------------------------- host */
 const hostSync = {
@@ -117,7 +151,7 @@ const hostSync = {
 const dirty = new Set();
 const flush = debounce(() => {
   if (status.state === 'off') return;
-  if (platform.isServer) serverSync.push();
+  if (remoteSync()) remoteSync().push();
   else if (platform.isHost) for (const k of dirty) hostSync.writeSection(k);
   dirty.clear();
 }, 1500);
@@ -129,14 +163,17 @@ export const sync = {
     if (platform.isServer && license.user()) {
       status.target = 'JARVIS-X Cloud';
       try { setStatus('syncing'); await serverSync.pull(); } catch (e) { setStatus('error', e.message); }
+    } else if (license.isCloud && license.user()) {
+      status.target = license.user().email;
+      try { setStatus('syncing'); await cloudSync.pull(); } catch (e) { setStatus('error', e.message); }
     } else if (platform.isHost) await hostSync.start();
     else setStatus('off');
   },
-  stop() { hostSync.unsub?.(); hostSync.unsub = null; setStatus('off'); },
-  async now() { if (platform.isServer) return serverSync.pull(); if (platform.isHost) for (const k of store.syncable()) await hostSync.writeSection(k); },
+  stop() { hostSync.unsub?.(); hostSync.unsub = null; cloudSync.version = null; status.target = null; setStatus('off'); },
+  async now() { if (remoteSync()) return remoteSync().pull(); if (platform.isHost) for (const k of store.syncable()) await hostSync.writeSection(k); },
 };
 
 bus.on('store:dirty', (k) => { if (store.get('settings.privacy.privacyMode') && k === 'chat') return; dirty.add(k); flush(); });
 bus.on('auth:change', (u) => { if (u) sync.start(); else sync.stop(); });
-addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && platform.isServer && status.state !== 'off') serverSync.pull().catch(() => {}); });
-setInterval(() => { if (platform.isServer && status.state === 'synced' && document.visibilityState === 'visible') serverSync.pull().catch(() => {}); }, 60e3);
+addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && remoteSync() && status.state !== 'off') remoteSync().pull().catch(() => {}); });
+setInterval(() => { if (remoteSync() && status.state === 'synced' && document.visibilityState === 'visible') remoteSync().pull().catch(() => {}); }, 60e3);

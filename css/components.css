@@ -214,3 +214,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 
 /* Dim the dashboard behind an open module window */
 .win-layer:has(.win) { background: color-mix(in srgb, var(--bg) 55%, transparent); pointer-events: auto; }
+
+/* Account initial in the top bar */
+.avatar-letter { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 600 12px/1 var(--font-display); color: var(--accent); border: 1px solid var(--line-hi); box-shadow: var(--glow); }
+.auth-card { display: grid; gap: 14px; }
+.auth-card .auth-note { font-size: 12px; color: var(--fg-dim); text-align: center; }
+.auth-sent { text-align: center; display: grid; gap: 10px; justify-items: center; padding: 8px 0; }
