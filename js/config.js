@@ -8,6 +8,6 @@
  * Full steps: docs/ACCOUNTS.md. Leave them empty to run without accounts.
  */
 export const CLOUD = {
-  url: '',          // e.g. 'https://abcdefghijklm.supabase.co'
-  key: '',          // e.g. 'sb_publishable_…' or the long 'eyJ…' anon key
+  url: 'https://klsxruspuqgkhmmnlfwr.supabase.co',
+  key: 'sb_publishable_r2gAP8OKBimS114KUydGBA_aCyqO_5l', // public key — safe to share
 };
