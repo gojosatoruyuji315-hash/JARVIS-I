@@ -77,12 +77,13 @@ function AI(el) {
   const opts = [['auto', `Automatic (now: ${providers[active].label})`],
     ...(providers.claude.available() ? [['claude', providers.claude.label]] : []),
     ...(platform.isServer ? [['server', providers.server.label + (license.user() ? '' : ' — sign in first')]] : []),
-    ['ollama', providers.ollama.label], ['anthropic', providers.anthropic.label], ['openai', providers.openai.label], ['local', providers.local.label]];
-  const usesKey = a.provider === 'anthropic' || a.provider === 'openai' || (a.provider === 'auto' && !providers.claude.available() && !providers.server.available() && active !== 'ollama');
+    ['browser', providers.browser.label], ['ollama', providers.ollama.label], ['anthropic', providers.anthropic.label], ['openai', providers.openai.label], ['local', providers.local.label]];
+  const usesKey = a.provider === 'anthropic' || a.provider === 'openai' || (a.provider === 'auto' && !providers.claude.available() && !providers.server.available() && active !== 'ollama' && active !== 'browser');
   const keyProv = a.provider === 'openai' || (a.provider === 'auto' && a.keyProvider === 'openai') ? 'openai' : 'anthropic';
   const showOllama = !platform.isHost && (a.provider === 'ollama' || a.provider === 'auto' || active === 'ollama');
-  el.append(h('div.stack', showOllama ? ollamaPanel(re, a.provider === 'ollama' || active === 'ollama') : null, section(
-    row('AI engine', active === 'claude' ? 'Running inside Claude: answers use your Claude account, no key needed.' : active === 'server' ? 'Answers come from your JARVIS-X server; keys stay on the server.' : active === 'ollama' ? 'Answers come from Ollama on your computer — private, free, works offline.' : active === 'local' ? 'Offline engine only. Install Ollama, add a key or use the server for full answers.' : 'Calls go straight from this browser with your key.',
+  const showBrowser = !platform.isHost && (a.provider === 'browser' || a.provider === 'auto' || active === 'browser');
+  el.append(h('div.stack', showBrowser ? browserAIPanel(re, a.provider === 'browser' || active === 'browser') : null, showOllama ? ollamaPanel(re, a.provider === 'ollama' || active === 'ollama') : null, section(
+    row('AI engine', active === 'claude' ? 'Running inside Claude: answers use your Claude account, no key needed.' : active === 'server' ? 'Answers come from your JARVIS-X server; keys stay on the server.' : active === 'ollama' ? 'Answers come from Ollama on your computer — private, free, works offline.' : active === 'browser' ? 'Answers come from the built-in AI running in this browser — free, no key, nothing to install.' : active === 'local' ? 'Offline engine only. Turn on the built-in AI above for full answers — free, no key.' : 'Calls go straight from this browser with your key.',
       select(a.provider, opts, (v) => { store.set('settings.ai.provider', v); re(); }, 'AI engine')),
     active === 'claude' || a.provider === 'claude' ? row('Response mode', 'Fast answers immediately; Deep thinks longest for hard problems', select(a.tier, [['quick', 'Fast'], ['default', 'Balanced'], ['complex', 'Deep']], (v) => store.set('settings.ai.tier', v), 'Response mode')) : null,
     usesKey ? row('Key provider', null, select(keyProv, [['anthropic', 'Anthropic'], ['openai', 'OpenAI-compatible']], (v) => { store.set('settings.ai.keyProvider', v); if (a.provider !== 'auto') store.set('settings.ai.provider', v); re(); }, 'Key provider')) : null,
@@ -99,6 +100,44 @@ function AI(el) {
     row('Live web', 'The AI searches the internet and reads pages for current information, and shows its sources', toggle('', a.web !== false, (x) => store.set('settings.ai.web', x))),
     row(h('span', 'Personality ', featureBadge('ai.personalities')), null, select(a.personality, Object.entries(PERSONALITIES).map(([k, p]) => [k, p.label]), (v) => { if (PERSONALITIES[v].plan !== 'free' && !gate('ai.personalities')) { re(); return; } store.set('settings.ai.personality', v); re(); }, 'Personality')),
     a.personality === 'custom' ? row('Custom persona', 'Describe how JARVIS-X should behave', h('textarea.textarea', { value: a.customPersona || '', placeholder: 'e.g. You are a calm British butler who loves astronomy…', onchange: (e) => store.set('settings.ai.customPersona', e.target.value) })) : null)));
+}
+
+/** Built-in AI: a real model that runs inside the browser (WebLLM / WebGPU) — no key, no install. */
+function browserAIPanel(re, inUse) {
+  const box = h('div.glass.widget.stack');
+  const paint = async () => {
+    const wl = await import('../core/webllm.js');
+    const headTitle = h('b.grow', 'Built-in AI — no key, no install');
+    if (!wl.supported()) {
+      box.replaceChildren(h('div.row', icon('cpu'), headTitle, h('span.pill', { style: 'color:var(--warn)' }, 'Not supported here')),
+        h('div.small', 'This browser has no WebGPU, which the built-in AI needs. Open JARVIS-X in ', h('b', 'Chrome or Edge'), ' on a Windows, Mac or Linux computer (or recent Chrome on Android). Until then the offline engine answers from live web search results.'));
+      return;
+    }
+    box.replaceChildren(h('div.row', icon('cpu'), headTitle, h('span.small.dim', 'Checking…')));
+    const models = await wl.availableModels();
+    const chosen = wl.chosenModel() || models[0]?.[0];
+    const cached = Object.fromEntries(await Promise.all(models.map(async ([id]) => [id, await wl.isCached(id)])));
+    const bar = h('progress', { max: 1, value: 0, style: 'width:100%', hidden: true }); const prog = h('div.small.dim');
+    const start = async (id) => {
+      store.set('settings.ai.browserModel', id); bar.hidden = false; prog.textContent = cached[id] ? 'Starting…' : 'Downloading — this happens only once…';
+      try {
+        await wl.load(id, (p) => { bar.value = p.progress || 0; prog.textContent = p.text; });
+        store.set('settings.ai.provider', 'browser');
+        toast('Built-in AI is ready', { type: 'ok' }); bus.emit('ai:provider', activeProviderId()); re();
+      } catch (e) { bar.hidden = true; prog.textContent = `Couldn't start: ${e.message}`; prog.style.color = 'var(--danger)'; }
+    };
+    const loaded = wl.loadedModel();
+    box.replaceChildren(...[
+      h('div.row', icon('cpu'), headTitle, loaded ? h('span.pill.ok', 'Running') : inUse ? h('span.pill', 'Starts with your first message') : null),
+      h('div.small.dim', 'A real AI model that runs inside this browser on your own graphics chip. No API key, no Ollama, no account — it downloads once, then also works offline. With ', h('b', 'Live web'), ' on, JARVIS-X searches the internet and gives the results to the model, so answers are current and come with sources.'),
+      h('div.list', models.map(([id, desc, size]) => h('div.item', h('span.grow', h('b.small', desc.split(' — ')[0]), h('div.xs.dim', desc.split(' — ')[1] || '')), h('span.xs.muted', cached[id] ? 'Downloaded' : size),
+        id === loaded ? h('span.pill.ok', 'In use') : h('button.btn.sm', { class: id === chosen && !loaded ? 'primary' : '', onclick: () => start(id) }, icon(cached[id] ? 'play' : 'download', { size: 13 }), cached[id] ? 'Use' : 'Download & use'),
+        cached[id] ? h('button.btn.ghost.sm', { 'aria-label': 'Delete', onclick: async () => { if (!(await confirmDialog('Delete this model from the browser?'))) return; await wl.remove(id); if (wl.chosenModel() === id) { store.set('settings.ai.browserModel', ''); store.set('settings.ai.browserReady', false); } paint(); } }, icon('trash', { size: 13 })) : null))),
+      bar, prog,
+      h('div.xs.muted', 'Tip: Qwen 2.5 1.5B suits most laptops. The first download takes a few minutes; afterwards it starts in seconds. Smaller models make more mistakes than big cloud AIs — Live web helps a lot with facts.')].filter(Boolean));
+  };
+  paint();
+  return box;
 }
 
 /** Ollama: run models on this computer — status, model picker, downloads, tools. */

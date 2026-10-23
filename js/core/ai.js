@@ -27,6 +27,7 @@ import { sampleTools, anthropicTools, runTool } from './tools.js';
 import { bus } from './bus.js';
 import { license } from './license.js';
 import * as ollama from './ollama.js';
+import * as webllm from './webllm.js';
 import { liveWebOn, approxLocation, needsWeb, prefetchContext, sourcesMarkdown, webInstructions } from './liveweb.js';
 
 /* ============================================================ personalities */
@@ -248,6 +249,23 @@ export const providers = {
       }
     },
   },
+  browser: {
+    label: 'Built-in AI (in this browser, no key)',
+    available: () => webllm.supported() && !!webllm.chosenModel(),
+    async run(messages, { system, signal, onText }) {
+      if (!webllm.supported()) throw new Error('The built-in AI needs WebGPU — open JARVIS-X in Chrome or Edge on a computer (Settings → AI).');
+      // Small in-browser models can't call tools, so JARVIS-X searches first and hands the results over
+      const live = await liveContext(messages, onText);
+      const sys = system.slice(0, 4000) + (live ? `\n\n${live.text.slice(0, 6000)}\n\nAnswer from these live results. Give the actual facts, and cite them as Markdown links.` : '');
+      let first = !webllm.loadedModel();
+      const out = await webllm.chat({ system: sys, messages: messages.slice(-8), signal,
+        onText: (t) => { first = false; onText?.(t); },
+        onProgress: (p) => { if (first) onText?.(`_Starting the built-in AI… ${Math.round((p.progress || 0) * 100)}%_\n\n_${p.text.replace(/_/g, ' ').slice(0, 140)}_`); } });
+      let text = out || '(No response)';
+      if (live && !/\*\*Sources\*\*/.test(text)) { text += sourcesMarkdown(live.results.slice(0, 5).filter((s) => !text.includes(s.url))); onText?.(text); }
+      return text;
+    },
+  },
   openai: {
     label: 'OpenAI-compatible (your key)',
     available: () => !!store.get('settings.ai.endpoint') || !!store.get('secrets.aiKey'),
@@ -274,7 +292,7 @@ export const providers = {
         const live = await liveContext(messages, onText).catch(() => null);
         if (live?.results?.length) {
           const top = live.results.slice(0, 4);
-          const body = `Here's what I found on the web:\n\n${top.map((r) => `- **${r.title}** — ${r.snippet}`).join('\n')}${sourcesMarkdown(top)}\n\n_Answered from live search results. Connect an AI engine in **Settings → AI** for full written answers._`;
+          const body = `Here's what I found on the web:\n\n${top.map((r) => `- **${r.title}** — ${r.snippet}`).join('\n')}${sourcesMarkdown(top)}\n\n_Answered from live search results. For full written answers with no key, turn on **Built-in AI** in **Settings → AI**._`;
           return reveal(body, onText, signal);
         }
       }
@@ -291,6 +309,7 @@ export function activeProviderId() {
   if (providers.server.available()) return 'server';
   if (store.get('secrets.aiKey')) return store.get('settings.ai.keyProvider') || 'anthropic';
   if (ollama.status().ok && ollama.status().models.length) return 'ollama';
+  if (providers.browser.available() && store.get('settings.ai.browserReady')) return 'browser';
   return 'local';
 }
 bus.on('platform:ready', () => {

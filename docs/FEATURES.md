@@ -153,3 +153,8 @@ Sign-up and sign-in, password reset by email, password change, a list of signed-
 
 ## Settings, security & accessibility
 Themes, accent, font, text size, HUD, animations, particles, startup · voice options · AI provider, endpoint, model, encrypted key, temperature, context, personality · 5 UI languages · notifications and sounds · high contrast, readable font, reduced motion, screen-reader live regions, full keyboard navigation, voice control · privacy mode, history toggle, data erase · password lock, session timeout, **WebAuthn biometric unlock**, permission status · rebindable shortcuts.
+
+
+## Built-in AI (no key, no install)
+
+Settings → AI → **Built-in AI** downloads a small open model (Qwen 2.5 1.5B recommended; Llama 3.2 1B/3B, Gemma 2 2B, Phi 3.5 mini) into the browser's cache and runs it on the graphics chip with WebLLM (WebGPU). No API key, account, Ollama or server. With Live web on, JARVIS-X searches DuckDuckGo/Wikipedia first and gives the results to the model, which answers with a Sources list. Needs Chrome or Edge on a computer (WebGPU); not available inside the Claude viewer.

@@ -18,7 +18,7 @@ The front end is plain HTML, CSS and ES modules with no build step. The server i
 | | **Self-hosted server** | **Inside Claude** (the published artifact) | **Static / personal** |
 |---|---|---|---|
 | Start | `npm start` | Open the artifact link | Any static host, e.g. `python3 -m http.server` |
-| AI | Your server's Anthropic or OpenAI key, with tools | **Claude, on the viewer's own account**, with tools | Your own key (Anthropic, OpenAI, OpenRouter or Ollama), or the offline engine |
+| AI | Your server's Anthropic or OpenAI key, with tools | **Claude, on the viewer's own account**, with tools | Built-in AI in the browser (no key), Ollama, your own key, or the offline engine |
 | Accounts | Email and password accounts, sessions, devices, password reset | Your claude.ai identity | None (single person) |
 | Sync | Encrypted server vault, merged across devices | Your private Claude data store, live across devices | This browser only (encrypted) |
 | Music | Search YouTube, Audius, Internet Archive, live radio and iTunes previews — no keys needed — plus the AI Composer | AI Composer, your files and generative tracks; **Full internet** opens the full version for search | Same as server |
@@ -60,6 +60,7 @@ Run the tests (with mocked AI and media providers) using `npm test`.
 - **The assistant takes actions.** "Remind me at 6 to call Sam", "move my dentist task to Friday", "make flashcards from this chapter" and "play some lo-fi" all happen in the app through 21 built-in tools. Installed plugins add more (generate an image, make a Godot project, log an expense, look something up on Wikipedia…). Destructive actions can be undone.
 - **Music you choose.** Search YouTube (full songs in the official player — no API key needed), Audius (full tracks from independent artists), Internet Archive (public-domain and Creative Commons recordings), 30,000+ live radio stations and iTunes (30-second previews). Play now, play next, queue, like, build playlists — all synced. Say "play Bohemian Rhapsody" anywhere.
 - **AI Composer.** Describe a song ("rainy evening lo-fi", "calm raga", "8-bit adventure") and the AI writes an original one — tempo, key, chords, melody — that the built-in synthesiser performs live. Works offline and inside Claude; download as WAV.
+- **Built-in AI — no key, no install.** A real AI model (Qwen 2.5, Llama 3.2, Gemma 2 or Phi 3.5) runs inside the browser on your graphics chip via WebLLM/WebGPU. Download once in Settings → AI, then it works free forever (even offline); with Live web on it answers current questions from fresh search results, with sources. Needs Chrome or Edge.
 - **Ollama.** Run AI on your own computer: JARVIS-X detects Ollama, lets you download and pick models, and tool-capable models can use every JARVIS-X action and the live web.
 - **Live web.** Turn on LIVE WEB and the AI searches the internet and reads pages before answering current questions, with real facts and a Sources list (Anthropic web search/fetch when you use an Anthropic key; free DuckDuckGo/Wikipedia search otherwise).
 - **Internet.** A built-in browser for online mode: tabs, one bar for search and addresses, a start page with your sites, news, Wikipedia and Hacker News, in-app search results with playable videos, bookmarks, history and Reader view.

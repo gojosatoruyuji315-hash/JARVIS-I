@@ -21,7 +21,7 @@ import { webRoutes } from './routes/web.js';
 
 const router = createRouter();
 router.get('/api/health', async (req, res) => json(res, {
-  ok: true, app: 'jarvis-x', version: '2.9.0',
+  ok: true, app: 'jarvis-x', version: '2.10.0',
   features: { reader: true, ai: !!config.ai.provider, aiDailyLimit: config.aiDailyLimit || null, runner: config.runner.mode, media: !!config.ai.openaiKey },
 }));
 for (const register of [authRoutes, aiRoutes, dataRoutes, syncRoutes, runRoutes, mediaRoutes, webRoutes]) register(router);
