@@ -34,6 +34,8 @@ function secret(name) {
   return s;
 }
 
+function useGemini() { return env('AI_PROVIDER') === 'gemini' || (!env('AI_PROVIDER') && !process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && !!process.env.GEMINI_API_KEY); }
+
 export const config = {
   port: num('PORT', 8080),
   host: env('HOST', '0.0.0.0'),
@@ -47,13 +49,13 @@ export const config = {
 
   // AI
   ai: {
-    provider: env('AI_PROVIDER', process.env.ANTHROPIC_API_KEY ? 'anthropic' : process.env.OPENAI_API_KEY ? 'openai' : process.env.OLLAMA_URL ? 'ollama' : ''),
+    provider: env('AI_PROVIDER', process.env.ANTHROPIC_API_KEY ? 'anthropic' : process.env.OPENAI_API_KEY ? 'openai' : process.env.GEMINI_API_KEY ? 'gemini' : ''),
     anthropicKey: env('ANTHROPIC_API_KEY'),
     anthropicModel: env('ANTHROPIC_MODEL', 'claude-sonnet-4-5'),
-    // Ollama (AI_PROVIDER=ollama) is spoken to through its OpenAI-compatible API
-    openaiKey: env('AI_PROVIDER') === 'ollama' || (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && process.env.OLLAMA_URL) ? 'ollama' : env('OPENAI_API_KEY'),
-    openaiBase: (env('AI_PROVIDER') === 'ollama' || (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && process.env.OLLAMA_URL) ? `${env('OLLAMA_URL', 'http://localhost:11434').replace(/\/$/, '')}/v1` : env('OPENAI_BASE_URL', 'https://api.openai.com/v1')).replace(/\/$/, ''),
-    openaiModel: env('AI_PROVIDER') === 'ollama' || (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && process.env.OLLAMA_URL) ? env('OLLAMA_MODEL', 'llama3.2') : env('OPENAI_MODEL', 'gpt-4o-mini'),
+    // Gemini (AI_PROVIDER=gemini) is spoken to through its OpenAI-compatible API
+    openaiKey: useGemini() ? env('GEMINI_API_KEY') : env('OPENAI_API_KEY'),
+    openaiBase: (useGemini() ? 'https://generativelanguage.googleapis.com/v1beta/openai' : env('OPENAI_BASE_URL', 'https://api.openai.com/v1')).replace(/\/$/, ''),
+    openaiModel: useGemini() ? env('GEMINI_MODEL', 'gemini-3.8-flash') : env('OPENAI_MODEL', 'gpt-4o-mini'),
     maxTokens: num('AI_MAX_TOKENS', 2048),
     /** Live web for the assistant: Anthropic's web search + web fetch tools ('on'), or only the free built-in search ('basic'), or 'off'. */
     web: env('AI_WEB', 'on'),

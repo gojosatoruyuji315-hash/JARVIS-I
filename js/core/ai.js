@@ -10,11 +10,14 @@
  *  server     The JARVIS-X server's AI proxy (keys and quotas live on the server),
  *             with the same tools via an Anthropic-format tool loop.
  *  anthropic  Anthropic Messages API with your own key (tool loop, direct from browser).
+ *  gemini     Google Gemini with your own free key — streams, uses the app's tools and
+ *             the live-web search tools.
+ *  browser    Built-in AI: a downloadable model running in the browser (WebLLM).
  *  openai     Any OpenAI-compatible endpoint with your own key (OpenAI, OpenRouter,
- *             Groq, Ollama/LM Studio at http://localhost:…/v1). Streams, no tools.
+ *             Groq, LM Studio…). Streams, no tools.
  *  local      Offline engine (rules, math solver, summariser). Always available.
  *
- * `auto` (the default setting) picks claude → server → your key → local.
+ * `auto` (the default setting) picks claude → server → Gemini → your other key → built-in AI → local.
  * @module core/ai
  */
 import { studyMode } from './studymode.js';
@@ -26,7 +29,7 @@ import { api, readSSE } from './api.js';
 import { sampleTools, anthropicTools, runTool } from './tools.js';
 import { bus } from './bus.js';
 import { license } from './license.js';
-import * as ollama from './ollama.js';
+import * as gemini from './gemini.js';
 import * as webllm from './webllm.js';
 import { liveWebOn, approxLocation, needsWeb, prefetchContext, sourcesMarkdown, webInstructions } from './liveweb.js';
 
@@ -219,34 +222,26 @@ export const providers = {
       }, { system, messages, onText, signal });
     },
   },
-  ollama: {
-    label: 'Ollama (on your computer)',
-    available: () => ollama.status().ok,
+  gemini: {
+    label: 'Google Gemini (your free key)',
+    available: () => gemini.configured(),
     async run(messages, { system, signal, onText, tools = true }) {
       const sources = []; let searched = false;
       const toolList = tools ? anthropicTools().map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } })) : [];
-      // Models without tool use get live search results up front when the question needs the web
-      const model = await ollama.currentModel();
-      const live = (!tools || !ollama.supportsTools(model) || store.get('settings.ai.ollamaTools') === false) ? await liveContext(messages, onText) : null;
+      const live = !tools ? await liveContext(messages, onText) : null;
       const sys = system + (live ? `\n\n${live.text}\n\nAnswer from these live results and cite them as Markdown links.` : '');
-      try {
-        const r = await ollama.chat({ system: sys, messages, tools: toolList, signal, onText,
-          onTool: (name, args, shown) => onText?.(shown + `_${name === 'search_web' ? `Searching the web for “${args.query || ''}”` : name === 'read_webpage' ? `Reading ${String(args.url || '').replace(/^https?:\/\//, '').slice(0, 60)}` : TOOL_LABEL(name)}…_`),
-          runTool: async (name, args) => {
-            const out = await runTool(name, args);
-            if (name === 'search_web') { searched = true; for (const x of (out.results || []).slice(0, 3)) sources.push({ title: x.title, url: x.url, weak: true }); }
-            if (name === 'read_webpage') sources.push({ title: out.title, url: out.url });
-            return out;
-          } });
-        let text = r.text || '(No response)';
-        const strong = sources.filter((s) => !s.weak); const list = strong.length ? strong : searched ? sources : live ? live.results.slice(0, 5) : [];
-        if (list.length && !/\*\*Sources\*\*/.test(text)) { text += sourcesMarkdown(list.filter((s) => !text.includes(s.url))); onText?.(text); }
-        return text;
-      } catch (e) {
-        if (e.name === 'AbortError') throw e;
-        if (e instanceof TypeError || /Failed to fetch|NetworkError|Load failed/i.test(e.message)) throw new Error(`Can't reach Ollama at ${ollama.base()} — make sure Ollama is running${location.hostname === 'localhost' || location.hostname === '127.0.0.1' ? '' : ` and allows ${location.origin} (Settings → AI → Ollama shows how)`}.`);
-        throw e;
-      }
+      let text = await gemini.chat({ system: sys, messages, tools: toolList, signal, onText,
+        onTool: (name, args, shown) => onText?.(shown + `_${name === 'search_web' ? `Searching the web for “${args.query || ''}”` : name === 'read_webpage' ? `Reading ${String(args.url || '').replace(/^https?:\/\//, '').slice(0, 60)}` : TOOL_LABEL(name)}…_`),
+        runTool: async (name, args) => {
+          const out = await runTool(name, args);
+          if (name === 'search_web') { searched = true; for (const x of (out.results || []).slice(0, 3)) sources.push({ title: x.title, url: x.url, weak: true }); }
+          if (name === 'read_webpage') sources.push({ title: out.title, url: out.url });
+          return out;
+        } });
+      text = text || '(No response)';
+      const strong = sources.filter((x) => !x.weak); const list = strong.length ? strong : searched ? sources : live ? live.results.slice(0, 5) : [];
+      if (list.length && !/\*\*Sources\*\*/.test(text)) { text += sourcesMarkdown(list.filter((x) => !text.includes(x.url))); onText?.(text); }
+      return text;
     },
   },
   browser: {
@@ -292,7 +287,7 @@ export const providers = {
         const live = await liveContext(messages, onText).catch(() => null);
         if (live?.results?.length) {
           const top = live.results.slice(0, 4);
-          const body = `Here's what I found on the web:\n\n${top.map((r) => `- **${r.title}** — ${r.snippet}`).join('\n')}${sourcesMarkdown(top)}\n\n_Answered from live search results. For full written answers with no key, turn on **Built-in AI** in **Settings → AI**._`;
+          const body = `Here's what I found on the web:\n\n${top.map((r) => `- **${r.title}** — ${r.snippet}`).join('\n')}${sourcesMarkdown(top)}\n\n_Answered from live search results. For full written answers, add a free **Gemini key** or download a **Built-in AI** model in **Settings → AI**._`;
           return reveal(body, onText, signal);
         }
       }
@@ -307,16 +302,12 @@ export function activeProviderId() {
   if (pref && pref !== 'auto' && providers[pref]) return pref;
   if (providers.claude.available()) return 'claude';
   if (providers.server.available()) return 'server';
+  if (gemini.configured()) return 'gemini';
   if (store.get('secrets.aiKey')) return store.get('settings.ai.keyProvider') || 'anthropic';
-  if (ollama.status().ok && ollama.status().models.length) return 'ollama';
   if (providers.browser.available() && store.get('settings.ai.browserReady')) return 'browser';
   return 'local';
 }
-bus.on('platform:ready', () => {
-  bus.emit('ai:provider', activeProviderId());
-  // Look for Ollama on this computer (not possible inside the Claude viewer)
-  if (platform.directNetwork) ollama.detect().then(() => bus.emit('ai:provider', activeProviderId()));
-});
+bus.on('platform:ready', () => bus.emit('ai:provider', activeProviderId()));
 
 /* ============================================================ local engine */
 const KNOWLEDGE = {

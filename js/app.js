@@ -323,7 +323,7 @@ function onboarding() {
 
 /* ------------------------------------------------- public plugin/debug API */
 window.JX = {
-  version: '2.11.0', bus, store, router, voice, ask, license, providers, platform, sync,
+  version: '2.12.0', bus, store, router, voice, ask, license, providers, platform, sync,
   /** Plugin API — see js/core/plugins.js and docs/PLUGINS.md. */
   plugins,
 };

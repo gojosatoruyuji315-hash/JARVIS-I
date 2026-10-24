@@ -77,17 +77,16 @@ function AI(el) {
   const opts = [['auto', `Automatic (now: ${providers[active].label})`],
     ...(providers.claude.available() ? [['claude', providers.claude.label]] : []),
     ...(platform.isServer ? [['server', providers.server.label + (license.user() ? '' : ' — sign in first')]] : []),
-    ['browser', providers.browser.label], ['ollama', providers.ollama.label], ['anthropic', providers.anthropic.label], ['openai', providers.openai.label], ['local', providers.local.label]];
-  const usesKey = a.provider === 'anthropic' || a.provider === 'openai' || (a.provider === 'auto' && !providers.claude.available() && !providers.server.available() && active !== 'ollama' && active !== 'browser');
+    ['gemini', providers.gemini.label], ['browser', providers.browser.label], ['anthropic', providers.anthropic.label], ['openai', providers.openai.label], ['local', providers.local.label]];
+  const usesKey = a.provider === 'anthropic' || a.provider === 'openai' || (a.provider === 'auto' && !providers.claude.available() && !providers.server.available() && active !== 'gemini' && active !== 'browser');
   const keyProv = a.provider === 'openai' || (a.provider === 'auto' && a.keyProvider === 'openai') ? 'openai' : 'anthropic';
-  const showOllama = !platform.isHost && (a.provider === 'ollama' || a.provider === 'auto' || active === 'ollama');
-  const showBrowser = !platform.isHost && (a.provider === 'browser' || a.provider === 'auto' || active === 'browser');
-  el.append(h('div.stack', showBrowser ? browserAIPanel(re, a.provider === 'browser' || active === 'browser') : null, showOllama ? ollamaPanel(re, a.provider === 'ollama' || active === 'ollama') : null, section(
-    row('AI engine', active === 'claude' ? 'Running inside Claude: answers use your Claude account, no key needed.' : active === 'server' ? 'Answers come from your JARVIS-X server; keys stay on the server.' : active === 'ollama' ? 'Answers come from Ollama on your computer — private, free, works offline.' : active === 'browser' ? 'Answers come from the built-in AI running in this browser — free, no key, nothing to install.' : active === 'local' ? 'Offline engine only. Turn on the built-in AI above for full answers — free, no key.' : 'Calls go straight from this browser with your key.',
+  const showOwn = !platform.isHost && ['auto', 'gemini', 'browser'].includes(a.provider || 'auto') || active === 'gemini' || active === 'browser';
+  el.append(h('div.stack', showOwn ? geminiPanel(re, active === 'gemini') : null, showOwn ? browserAIPanel(re, active === 'browser') : null, section(
+    row('AI engine', active === 'claude' ? 'Running inside Claude: answers use your Claude account, no key needed.' : active === 'server' ? 'Answers come from your JARVIS-X server; keys stay on the server.' : active === 'gemini' ? 'Answers come from Google Gemini with your free key — smart, with live web search and JARVIS-X actions.' : active === 'browser' ? 'Answers come from the built-in AI running in this browser — free, no key, nothing to install.' : active === 'local' ? 'Offline engine only. Add a free Gemini key or download a built-in model above for full answers.' : 'Calls go straight from this browser with your key.',
       select(a.provider, opts, (v) => { store.set('settings.ai.provider', v); re(); }, 'AI engine')),
     active === 'claude' || a.provider === 'claude' ? row('Response mode', 'Fast answers immediately; Deep thinks longest for hard problems', select(a.tier, [['quick', 'Fast'], ['default', 'Balanced'], ['complex', 'Deep']], (v) => store.set('settings.ai.tier', v), 'Response mode')) : null,
     usesKey ? row('Key provider', null, select(keyProv, [['anthropic', 'Anthropic'], ['openai', 'OpenAI-compatible']], (v) => { store.set('settings.ai.keyProvider', v); if (a.provider !== 'auto') store.set('settings.ai.provider', v); re(); }, 'Key provider')) : null,
-    usesKey ? row('Endpoint', keyProv === 'openai' ? 'Base URL — https://api.openai.com/v1, https://openrouter.ai/api/v1, http://localhost:11434/v1 (Ollama)…' : 'Leave empty for https://api.anthropic.com', h('input.input', { value: a.endpoint, placeholder: keyProv === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com', onchange: (e) => store.set('settings.ai.endpoint', e.target.value.trim()) })) : null,
+    usesKey ? row('Endpoint', keyProv === 'openai' ? 'Base URL — https://api.openai.com/v1, https://openrouter.ai/api/v1, https://api.groq.com/openai/v1…' : 'Leave empty for https://api.anthropic.com', h('input.input', { value: a.endpoint, placeholder: keyProv === 'openai' ? 'https://api.openai.com/v1' : 'https://api.anthropic.com', onchange: (e) => store.set('settings.ai.endpoint', e.target.value.trim()) })) : null,
     usesKey ? row('Model', null, h('input.input', { value: a.model, placeholder: keyProv === 'openai' ? 'gpt-4o-mini' : 'claude-sonnet-4-5', onchange: (e) => store.set('settings.ai.model', e.target.value.trim()) })) : null,
     usesKey ? row('API key', 'Encrypted in this browser\'s vault and never synced. For a public deployment use the server instead.', key, h('button.btn.sm', { onclick: () => { if (key.value) { store.set('secrets.aiKey', key.value.trim()); key.value = ''; toast('API key saved on this device', { type: 'ok' }); re(); } } }, 'Save'), h('button.btn.ghost.sm', { onclick: () => { store.set('secrets.aiKey', ''); re(); } }, 'Remove')) : null,
     row('Test', null, h('button.btn.sm', { onclick: async () => {
@@ -102,12 +101,49 @@ function AI(el) {
     a.personality === 'custom' ? row('Custom persona', 'Describe how JARVIS-X should behave', h('textarea.textarea', { value: a.customPersona || '', placeholder: 'e.g. You are a calm British butler who loves astronomy…', onchange: (e) => store.set('settings.ai.customPersona', e.target.value) })) : null)));
 }
 
+/** Google Gemini with the person's own free key. */
+function geminiPanel(re, inUse) {
+  const box = h('div.glass.widget.stack');
+  const paint = async () => {
+    const g = await import('../core/gemini.js');
+    const has = g.configured();
+    const keyIn = h('input.input', { type: 'password', placeholder: has ? '•••••••• (saved on this device)' : 'Paste your Gemini API key (starts with AIza…)', autocomplete: 'off', 'aria-label': 'Gemini API key', style: 'flex:1;min-width:200px' });
+    const msg = h('div.small');
+    const save = async () => {
+      const v = keyIn.value.trim(); if (!v) return;
+      store.set('secrets.geminiKey', v); keyIn.value = ''; msg.textContent = 'Checking the key…'; msg.style.color = '';
+      try {
+        const out = await providers.gemini.run([{ role: 'user', content: 'Reply with exactly: Systems online.' }], { system: 'Be brief.', tools: false });
+        if ((store.get('settings.ai.provider') || 'auto') !== 'auto') store.set('settings.ai.provider', 'gemini'); // you chose another engine before: switch to Gemini
+        toast('Gemini is connected', { type: 'ok' }); bus.emit('ai:provider', activeProviderId()); msg.textContent = `✔ ${out.slice(0, 60)}`; re();
+      } catch (e) { msg.textContent = `✖ ${e.message}`; msg.style.color = 'var(--danger)'; }
+    };
+    const models = has ? await g.listModels() : g.MODELS;
+    const cur = g.model();
+    const sel = h('select.select', { style: 'width:auto;max-width:100%', 'aria-label': 'Gemini model', onchange: (e) => { store.set('settings.ai.geminiModel', e.target.value); toast(`Using ${e.target.value}`, { timeout: 1500 }); } },
+      (models.some(([id]) => id === cur) ? models : [[cur, cur], ...models]).map(([id, label]) => h('option', { value: id, selected: id === cur }, label)));
+    box.replaceChildren(...[
+      h('div.row', icon('sparkles'), h('b.grow', 'Google Gemini — smart, free key'), has ? h('span.pill.ok', inUse ? 'In use' : 'Key saved') : null),
+      h('div.small.dim', 'One of the smartest AIs, free with your own key. It can search the live web and use JARVIS-X actions (tasks, reminders, notes, music…).'),
+      has ? null : h('ol.small', { style: 'margin:0' },
+        h('li', 'Open ', h('a', { href: g.KEY_URL, target: '_blank', rel: 'noopener' }, 'aistudio.google.com/apikey'), ' and sign in with your Google account.'),
+        h('li', 'Click ', h('b', 'Create API key'), ', then copy it.'),
+        h('li', 'Paste it below and press ', h('b', 'Save'), '.')),
+      h('div.row', keyIn, h('button.btn.primary.sm', { onclick: save }, 'Save'), has ? h('button.btn.ghost.sm', { onclick: () => { store.set('secrets.geminiKey', ''); if (store.get('settings.ai.provider') === 'gemini') store.set('settings.ai.provider', 'auto'); re(); } }, 'Remove') : null),
+      msg,
+      h('div.row', h('span.small', 'Model'), sel),
+      h('div.xs.muted', 'The key is stored encrypted in this browser only and is never synced or uploaded. Free keys have daily limits; on the free tier Google may use your chats to improve its products.')].filter(Boolean));
+  };
+  paint();
+  return box;
+}
+
 /** Built-in AI: a real model that runs inside the browser (WebLLM / WebGPU) — no key, no install. */
 function browserAIPanel(re, inUse) {
   const box = h('div.glass.widget.stack');
   const paint = async () => {
     const wl = await import('../core/webllm.js');
-    const headTitle = h('b.grow', 'Built-in AI — no key, no install');
+    const headTitle = h('b.grow', 'Built-in AI — downloadable models, no key');
     if (!wl.supported()) {
       box.replaceChildren(h('div.row', icon('cpu'), headTitle, h('span.pill', { style: 'color:var(--warn)' }, 'Not supported here')),
         h('div.small', 'This browser has no WebGPU, which the built-in AI needs. Open JARVIS-X in ', h('b', 'Chrome or Edge'), ' on a Windows, Mac or Linux computer (or recent Chrome on Android). Until then the offline engine answers from live web search results.'));
@@ -129,60 +165,17 @@ function browserAIPanel(re, inUse) {
     const loaded = wl.loadedModel();
     box.replaceChildren(...[
       h('div.row', icon('cpu'), headTitle, loaded ? h('span.pill.ok', 'Running') : inUse ? h('span.pill', 'Starts with your first message') : null),
-      h('div.small.dim', 'A real AI model that runs inside this browser on your own graphics chip. No API key, no Ollama, no account — it downloads once, then also works offline. With ', h('b', 'Live web'), ' on, JARVIS-X searches the internet and gives the results to the model, so answers are current and come with sources.'),
-      h('div.list', models.map(([id, desc, size]) => h('div.item', h('span.grow', h('b.small', desc.split(' — ')[0]), h('div.xs.dim', desc.split(' — ')[1] || '')), h('span.xs.muted', cached[id] ? 'Downloaded' : size),
-        id === loaded ? h('span.pill.ok', 'In use') : h('button.btn.sm', { class: id === chosen && !loaded ? 'primary' : '', onclick: () => start(id) }, icon(cached[id] ? 'play' : 'download', { size: 13 }), cached[id] ? 'Use' : 'Download & use'),
-        cached[id] ? h('button.btn.ghost.sm', { 'aria-label': 'Delete', onclick: async () => { if (!(await confirmDialog('Delete this model from the browser?'))) return; await wl.remove(id); if (wl.chosenModel() === id) { store.set('settings.ai.browserModel', ''); store.set('settings.ai.browserReady', false); } paint(); } }, icon('trash', { size: 13 })) : null))),
+      h('div.small.dim', 'Real AI models that run inside this browser on your own graphics chip. No key, no install, no account — download once, then they also work offline. With ', h('b', 'Live web'), ' on, JARVIS-X searches the internet and gives the results to the model, so answers are current and come with sources.'),
+      ...wl.GROUPS.map(([g, title]) => {
+        const items = models.filter((m) => m[4] === g); if (!items.length) return null;
+        const open = g === 'everyday' || items.some(([id]) => cached[id] || id === loaded);
+        return h('details', { open }, h('summary.small', h('b', title), h('span.xs.muted', ` · ${items.length} model${items.length === 1 ? '' : 's'}`)),
+          h('div.list', { style: 'margin-top:6px' }, items.map(([id, name, desc, size]) => h('div.item', h('span.grow', h('b.small', name), h('div.xs.dim', desc)), h('span.xs.muted', cached[id] ? 'Downloaded' : size),
+            id === loaded ? h('span.pill.ok', 'In use') : h('button.btn.sm', { class: id === chosen && !loaded ? 'primary' : '', onclick: () => start(id) }, icon(cached[id] ? 'play' : 'download', { size: 13 }), cached[id] ? 'Use' : 'Download & use'),
+            cached[id] ? h('button.btn.ghost.sm', { 'aria-label': `Delete ${name}`, onclick: async () => { if (!(await confirmDialog(`Delete ${name} from this browser?`))) return; await wl.remove(id); if (wl.chosenModel() === id) { store.set('settings.ai.browserModel', ''); store.set('settings.ai.browserReady', false); } paint(); } }, icon('trash', { size: 13 })) : null))));
+      }),
       bar, prog,
-      h('div.xs.muted', 'Tip: Qwen 2.5 1.5B suits most laptops. The first download takes a few minutes; afterwards it starts in seconds. Smaller models make more mistakes than big cloud AIs — Live web helps a lot with facts.')].filter(Boolean));
-  };
-  paint();
-  return box;
-}
-
-/** Ollama: run models on this computer — status, model picker, downloads, tools. */
-function ollamaPanel(re, inUse) {
-  const box = h('div.glass.widget.stack');
-  const paint = async (force) => {
-    const ol = await import('../core/ollama.js');
-    box.replaceChildren(h('div.row', icon('cpu'), h('b.grow', 'Ollama — AI on your computer'), h('span.small.dim', 'Checking…')));
-    const st = await ol.detect(force);
-    const url = h('input.input', { value: ol.base(), style: 'max-width:260px', 'aria-label': 'Ollama address', onchange: (e) => { store.set('settings.ai.ollamaUrl', e.target.value.trim()); paint(true); } });
-    const head = h('div.row', icon('cpu'), h('b.grow', 'Ollama — AI on your computer'),
-      st.ok ? h('span.pill.ok', `Connected · v${st.version}`) : h('span.pill', { style: 'color:var(--warn)' }, 'Not found'),
-      h('button.btn.ghost.sm', { onclick: () => paint(true) }, icon('refresh', { size: 13 }), 'Check again'));
-    if (!st.ok) {
-      const help = ol.corsHelp(st.reason?.code);
-      box.replaceChildren(...[head, h('div.small.dim', 'Ollama runs AI models privately on your own computer — free, no key, works offline.'),
-        st.reason ? h('div.small', { style: 'color:var(--warn)' }, h('b', 'Why it isn\'t connecting: '), st.reason.text) : null,
-        h('div.xs.muted', `This page: ${location.origin} · tried ${store.get('settings.ai.ollamaUrl') || 'http://127.0.0.1:11434 and http://localhost:11434'}`),
-        h('ol.small', { style: 'margin:0' }, help.steps.map((x) => { const m = x.match(/^(Windows[^:]*|Mac[^:]*|Linux): (.+)$/); return h('li', m ? [`${m[1]}: `, h('code', { style: 'user-select:all;word-break:break-all' }, m[2]), ' ', h('button.btn.ghost.sm', { onclick: () => navigator.clipboard?.writeText(m[2]).then(() => toast('Copied', { timeout: 1200 })) }, 'Copy')] : x); })),
-        h('div.row', h('span.small', 'Ollama address'), url)].filter(Boolean));
-      return;
-    }
-    const models = st.models;
-    const sel = h('select.select', { style: 'width:auto', 'aria-label': 'Model', onchange: (e) => { store.set('settings.ai.ollamaModel', e.target.value); toast(`Using ${e.target.value}`, { timeout: 1500 }); } },
-      models.length ? models.map((m) => h('option', { value: m.name, selected: m.name === (store.get('settings.ai.ollamaModel') || models[0].name) }, `${m.name}${m.params ? ` · ${m.params}` : ''} · ${fmt.bytes(m.size)}`)) : h('option', { value: '' }, 'No models yet — download one below'));
-    const prog = h('div.small.dim'); const bar = h('progress', { max: 1, value: 0, style: 'width:100%', hidden: true });
-    const custom = h('input.input', { placeholder: 'Any model name from ollama.com/library, e.g. deepseek-r1:7b', style: 'flex:1;min-width:200px' });
-    const download = async (name) => {
-      if (!name) return; bar.hidden = false; prog.textContent = `Downloading ${name}…`;
-      try {
-        await ol.pull(name, (p) => { if (p.total) { bar.value = (p.completed || 0) / p.total; prog.textContent = `${name}: ${p.status} — ${fmt.bytes(p.completed || 0)} of ${fmt.bytes(p.total)}`; } else prog.textContent = `${name}: ${p.status}`; });
-        store.set('settings.ai.ollamaModel', name); toast(`${name} is ready`, { type: 'ok' }); paint(); bus.emit('ai:provider');
-      } catch (e) { prog.textContent = e.message; bar.hidden = true; }
-    };
-    const toolsOn = store.get('settings.ai.ollamaTools') !== false;
-    box.replaceChildren(...[head,
-      inUse ? null : h('div.row', h('span.small.dim.grow', 'Ollama is running. Use it for all answers?'), h('button.btn.primary.sm', { onclick: () => { store.set('settings.ai.provider', 'ollama'); re(); } }, 'Use Ollama')),
-      h('div.row', h('span.small', 'Model'), sel, !models.length ? '' : h('button.btn.ghost.sm', { onclick: async () => { const m = sel.value; if (!m || !(await confirmDialog(`Delete ${m} from your computer?`))) return; await ol.remove(m); if (store.get('settings.ai.ollamaModel') === m) store.set('settings.ai.ollamaModel', ''); paint(); } }, icon('trash', { size: 13 }), 'Delete')),
-      h('label.row.small', h('input', { type: 'checkbox', checked: toolsOn, onchange: (e) => store.set('settings.ai.ollamaTools', e.target.checked) }), 'Let the model use JARVIS-X actions and live web search (needs a tool-capable model — Llama 3.1+, Qwen, Mistral)'),
-      h('details', { open: !models.length }, h('summary.small', 'Download a model'),
-        h('div.list', { style: 'margin-top:6px' }, ol.RECOMMENDED.map(([name, desc, size]) => h('div.item', h('span.grow', h('b.small', name), h('div.xs.dim', desc)), h('span.xs.muted', size),
-          models.some((m) => m.name === name) ? h('span.pill.ok', 'Installed') : h('button.btn.sm', { onclick: () => download(name) }, icon('download', { size: 13 }), 'Download')))),
-        h('div.row', { style: 'margin-top:6px' }, custom, h('button.btn.sm', { onclick: () => download(custom.value.trim()) }, 'Download'))),
-      bar, prog,
-      h('div.row', h('span.xs.muted', 'Address'), url, h('span.xs.muted', `connected via ${st.base || ol.base()}`))].filter(Boolean));
+      h('div.xs.muted', 'Tip: start with Qwen 3.5 · 2B. If it runs smoothly, try a bigger one. Each model downloads once, then starts in seconds and works offline. These run on your own computer, so they are less clever than Gemini — Live web helps a lot with facts.')].filter(Boolean));
   };
   paint();
   return box;

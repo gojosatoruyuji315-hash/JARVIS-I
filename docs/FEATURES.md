@@ -13,14 +13,12 @@
 | Themes | Arc Blue, Midnight Silver, Daylight Lab, Aurum, Nebula, Obsidian Prime · custom accent color |
 | Command palette, Smart search | `Ctrl+P` / `Ctrl+K`, fully keyboard driven |
 
-## Ollama (AI on your own computer)
-Run AI models privately on your computer — free, no API key, works offline.
-- JARVIS-X **finds Ollama automatically** (http://localhost:11434) and uses it when you have no other AI set up. Pick it any time in **Settings → AI → AI engine → Ollama**.
-- **Settings → AI → Ollama:** connection status, choose a model, **download models** with a progress bar (Llama 3.2/3.1, Qwen 2.5/3, Gemma 3, Mistral, Phi-4 mini, or any name from ollama.com/library), delete models, change the address.
-- **Actions and live web:** tool-capable models can add tasks, set reminders, control music… and search the web / read pages, just like the cloud AIs. Models without tools still get live search results handed to them.
-- Thinking models' `<think>` sections are hidden; replies stream as they're written.
-- **Works out of the box** when you run JARVIS-X with the launcher (localhost). On a website (like GitHub Pages) Ollama must allow that address: set `OLLAMA_ORIGINS` to it and restart Ollama — the Ollama panel shows the exact command for Windows, Mac and Linux.
-- **Server:** `AI_PROVIDER=ollama`, `OLLAMA_URL`, `OLLAMA_MODEL` make the JARVIS-X server use Ollama for everyone.
+## Google Gemini (free key)
+
+- **Settings → AI → Google Gemini:** paste a free key from aistudio.google.com/apikey (step-by-step instructions are shown). JARVIS-X checks it and switches to Gemini.
+- **Choose a model:** Gemini 3.8 Flash (default), 3.6 Flash, 3.5 Flash-Lite, 3.1 Flash-Lite, Gemini 4 Argon (paid tier), plus any other chat model your key can use (loaded live from Google).
+- Streams answers, uses every JARVIS-X action (tasks, reminders, notes, music…) and searches the **live web** with JARVIS-X's free search tools, ending with a Sources list.
+- The key is encrypted in the browser's vault and never synced. Server owners can set `GEMINI_API_KEY` / `GEMINI_MODEL` instead.
 
 ## Live web (the AI goes online)
 With **Live web** on (top-bar **LIVE WEB** chip, the Assistant's *Live web* button, or Settings → AI), the assistant looks things up on the real internet before answering anything current or factual — news, prices, scores, weather, people in office, release dates — and answers with the actual information plus a **Sources** list.
@@ -77,7 +75,7 @@ Widgets that need something this environment lacks are hidden by default. If you
 - Save a reply as a note, pin it to memory, speak it, copy it
 - Knowledge-base retrieval in chat
 
-**Engines.** Inside Claude, answers come from Claude on your own account. On the server, they come from the server's Anthropic or OpenAI key. Standalone, you can use your own key (Anthropic, OpenAI, OpenRouter, Groq or Ollama). All of them can **use the app's tools**: create, update and delete tasks; add events; set reminders; search, read and save notes; remember and forget; start timers and focus sessions; open modules; change themes; control music and **search and play any song**; create flashcards; run routines; calculate; and search the knowledge base. Installed plugins add their own tools (generate images and videos, create Godot projects, log expenses, look things up on Wikipedia, file GitHub issues…).
+**Engines.** Inside Claude, answers come from Claude on your own account. On the server, they come from the server's Anthropic or OpenAI key. Standalone, you can use a free Gemini key, a downloadable built-in model, or your own Anthropic/OpenAI key. All of them can **use the app's tools**: create, update and delete tasks; add events; set reminders; search, read and save notes; remember and forget; start timers and focus sessions; open modules; change themes; control music and **search and play any song**; create flashcards; run routines; calculate; and search the knowledge base. Installed plugins add their own tools (generate images and videos, create Godot projects, log expenses, look things up on Wikipedia, file GitHub issues…).
 
 **Offline engine.** This is the fallback when no model is reachable. It covers greetings with a daily briefing, "plan my day" (time blocks), math, linear and quadratic equation solving with steps, unit and currency conversion, extractive summaries with key terms, a 26-topic explainer pack, brainstorming (SCAMPER lenses), email and essay templates, text tightening, a phrasebook translator, static code review and homework guidance.
 
@@ -157,4 +155,4 @@ Themes, accent, font, text size, HUD, animations, particles, startup · voice op
 
 ## Built-in AI (no key, no install)
 
-Settings → AI → **Built-in AI** downloads a small open model (Qwen 2.5 1.5B recommended; Llama 3.2 1B/3B, Gemma 2 2B, Phi 3.5 mini) into the browser's cache and runs it on the graphics chip with WebLLM (WebGPU). No API key, account, Ollama or server. With Live web on, JARVIS-X searches DuckDuckGo/Wikipedia first and gives the results to the model, which answers with a Sources list. Needs Chrome or Edge on a computer (WebGPU); not available inside the Claude viewer.
+Settings → AI → **Built-in AI** offers 26 downloadable open models in five groups — Everyday (Qwen 3.5 2B recommended, Gemma 4 E2B, Qwen 3 1.7B, Llama 3.2 3B, Ministral 3 3B…), Light (Gemma 3 1B, Llama 3.2 1B, Qwen 3.5 0.8B), Smarter (Qwen 3.5 4B, Qwen 3 4B, Phi-4 mini, Phi 3.5 mini), Biggest (Qwen 3.5 9B, Qwen 3 8B, Llama 3.1 8B, Gemma 2 9B, Mistral 7B, Hermes 3 8B) and Specialists (Qwen 2.5 Coder, DeepSeek R1, Qwen 2.5 Math). Each downloads once into the browser's cache and runs on the graphics chip with WebLLM (WebGPU). No API key, account, install or server. With Live web on, JARVIS-X searches DuckDuckGo/Wikipedia first and gives the results to the model, which answers with a Sources list. Needs Chrome or Edge on a computer (WebGPU); not available inside the Claude viewer.

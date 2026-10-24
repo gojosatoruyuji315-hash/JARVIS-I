@@ -69,12 +69,12 @@ async function upstream({ system, messages, tools, stream }, signal) {
 export function aiRoutes(r) {
   r.get('/api/ai/status', async (req, res) => {
     const a = req.auth;
-    return json(res, { web: A.web === 'off' ? 'off' : A.provider === 'anthropic' && A.web === 'on' && nativeWebOk ? 'native' : 'basic', configured: !!A.provider, provider: A.provider || null, model: A.provider === 'anthropic' ? A.anthropicModel : (A.provider === 'openai' || A.provider === 'ollama') ? A.openaiModel : null, quota: a ? quota(a.user.id) : null });
+    return json(res, { web: A.web === 'off' ? 'off' : A.provider === 'anthropic' && A.web === 'on' && nativeWebOk ? 'native' : 'basic', configured: !!A.provider, provider: A.provider || null, model: A.provider === 'anthropic' ? A.anthropicModel : (A.provider === 'openai' || A.provider === 'gemini') ? A.openaiModel : null, quota: a ? quota(a.user.id) : null });
   });
 
   r.post('/api/ai/chat', async (req, res) => {
     const { user } = requireUser(req);
-    if (!A.provider) throw new HttpError(503, 'No AI provider is configured on this server (set ANTHROPIC_API_KEY or OPENAI_API_KEY).');
+    if (!A.provider) throw new HttpError(503, 'No AI provider is configured on this server (set ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY).');
     rateLimit(`ai:${user.id}`, 40, 60e3);
     const body = await jsonBody(req, 1024 * 1024);
     if (!Array.isArray(body.messages) || !body.messages.length) throw new HttpError(400, 'messages is required');

@@ -4,7 +4,7 @@
  * network-only for cross-origin (APIs, fonts fall back gracefully).
  * Bump CACHE when shipping a new version.
  */
-const CACHE = 'jarvis-x-v2.11.0';
+const CACHE = 'jarvis-x-v2.12.0';
 const SHELL = [
   './', 'index.html', 'sandbox.html', 'manifest.webmanifest', 'assets/icons/logo.svg',
   'css/tokens.css', 'css/base.css', 'css/hud.css', 'css/components.css', 'css/modules.css',
@@ -18,7 +18,7 @@ const SHELL = [
   'js/modules/dashboard.js', 'js/modules/assistant.js', 'js/modules/productivity.js', 'js/modules/study.js',
   'js/modules/devspace.js', 'js/modules/files.js', 'js/modules/music.js', 'js/modules/memory.js', 'js/modules/automation.js',
   'js/modules/analytics.js', 'js/modules/workspace.js', 'js/modules/settings.js', 'js/modules/account.js',
-  'js/core/music-sources.js', 'js/core/composer.js', 'js/core/net.js', 'js/core/fullversion.js', 'js/core/studymode.js', 'js/modules/teacher.js', 'js/modules/internet.js', 'js/core/liveweb.js', 'js/core/ollama.js', 'js/core/webllm.js', 'js/core/cloud.js', 'js/config.js', 'js/core/filelist.js', 'js/core/plugins.js',
+  'js/core/music-sources.js', 'js/core/composer.js', 'js/core/net.js', 'js/core/fullversion.js', 'js/core/studymode.js', 'js/modules/teacher.js', 'js/modules/internet.js', 'js/core/liveweb.js', 'js/core/webllm.js', 'js/core/gemini.js', 'js/core/cloud.js', 'js/config.js', 'js/core/filelist.js', 'js/core/plugins.js',
   'js/modules/plugins.js', 'js/modules/plugin-host.js',
   'js/plugins/catalog.js', 'js/plugins/github.js', 'js/plugins/godot-templates.js', 'js/plugins/godot.js', 'js/plugins/image-studio.js', 'js/plugins/language.js', 'js/plugins/lifestyle.js', 'js/plugins/svg-illustrator.js', 'js/plugins/utilities.js', 'js/plugins/video-studio.js', 'js/plugins/voice-studio.js',
 ];

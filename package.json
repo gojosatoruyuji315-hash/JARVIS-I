@@ -1,6 +1,6 @@
 {
   "name": "jarvis-x",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "private": true,
   "description": "JARVIS-X — a browser AI operating system with a zero-dependency Node server.",
   "type": "module",
