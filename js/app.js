@@ -155,7 +155,7 @@ async function askAndShow(text, { speak = store.get('settings.voice.autoSpeak') 
   if (router.current === 'assistant') { bus.emit('assistant:ask', { text }); return; }
   const tts = speak && voice.supported.tts ? voice.speakStream() : null;
   home?.showReply(text, '');
-  const res = await ask(text, { onChunk: (full) => { home?.showReply(text, full); tts?.push(full); } });
+  const res = await ask(text, { onStatus: (st) => home?.showReply(text, st), onChunk: (full) => { home?.showReply(text, full); tts?.push(full); } });
   tts?.end();
   renderTop($('.jx-top'));
   return res;
@@ -323,7 +323,7 @@ function onboarding() {
 
 /* ------------------------------------------------- public plugin/debug API */
 window.JX = {
-  version: '2.12.0', bus, store, router, voice, ask, license, providers, platform, sync,
+  version: '2.12.1', bus, store, router, voice, ask, license, providers, platform, sync,
   /** Plugin API — see js/core/plugins.js and docs/PLUGINS.md. */
   plugins,
 };

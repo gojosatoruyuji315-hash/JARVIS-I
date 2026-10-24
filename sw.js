@@ -4,7 +4,7 @@
  * network-only for cross-origin (APIs, fonts fall back gracefully).
  * Bump CACHE when shipping a new version.
  */
-const CACHE = 'jarvis-x-v2.12.0';
+const CACHE = 'jarvis-x-v2.12.1';
 const SHELL = [
   './', 'index.html', 'sandbox.html', 'manifest.webmanifest', 'assets/icons/logo.svg',
   'css/tokens.css', 'css/base.css', 'css/hud.css', 'css/components.css', 'css/modules.css',

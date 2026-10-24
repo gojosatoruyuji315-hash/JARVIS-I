@@ -134,6 +134,7 @@ export function Teacher(el, params = {}) {
       ...messages.slice(-16).map(({ role, content }) => ({ role, content }))];
     try {
       const r = await ask(text, { conversation: false, commands: false, tools: true, history, system: sys(), signal: ctrl.signal,
+        onStatus: (t) => { live.querySelector('.md').innerHTML = renderMarkdown(t); },
         onChunk: (t) => { live.querySelector('.md').innerHTML = renderMarkdown(t); logEl.scrollTop = logEl.scrollHeight; } });
       saveL({ messages: [...messages, { role: 'assistant', content: r.text }] });
       if (store.get('study.teacherSpeak')) import('../core/voice.js').then(({ voice }) => voice.speak(r.text.replace(/[#*_`>|]/g, '')));

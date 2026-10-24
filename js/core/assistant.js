@@ -121,10 +121,17 @@ export async function ask(text, opts = {}) {
   bus.emit('hud:state', { state: 'thinking' });
   if (conv) appendMessage(conv.id, { role: 'assistant', content: '', ts: Date.now(), provider: providerId });
   let full = ''; let error;
+  // Until the first words arrive, show that JARVIS-X is working (with a seconds counter)
+  const started = Date.now(); let got = false;
+  const wait = () => { if (!got) opts.onStatus?.(`_Thinking… ${Math.round((Date.now() - started) / 1000)}s_`); };
+  wait(); const ticker = setInterval(wait, 1000);
   try {
-    full = await provider.run(messages, { system, signal, tools, tier: opts.tier, onText: (t) => { full = t; onChunk?.(t); bus.emit('assistant:chunk', { full: t }); } });
+    full = await provider.run(messages, { system, signal, tools, tier: opts.tier, onText: (t) => { if (!t) return; got = true; full = t; onChunk?.(t); bus.emit('assistant:chunk', { full: t }); } });
+    clearInterval(ticker);
+    if (!String(full || '').trim()) { full = `> The AI sent back an empty answer. Try again${providerId === 'browser' ? ', or pick a different built-in model' : providerId === 'gemini' ? ', or pick a different Gemini model' : ''} in Settings → AI.`; onChunk?.(full); }
   } catch (e) {
-    if (e.name === 'AbortError') { full = (e.partial || full || '') + '\n\n_(stopped)_'; }
+    clearInterval(ticker);
+    if (e.name === 'AbortError') { full = (e.partial || (got ? full : '') || '') + '\n\n_(stopped)_'; onChunk?.(full); }
     else {
       error = e.message;
       if (e.status === 429 || e.data?.code === 'quota') { full = e.message; }
@@ -136,6 +143,7 @@ export async function ask(text, opts = {}) {
       onChunk?.(full);
     }
   }
+  clearInterval(ticker);
   if (conv) replaceLast(conv.id, { content: full || '_(no answer)_' });
   if (!error || providerId === 'local') countUsage();
   bus.emit('hud:state', { state: 'idle' });

@@ -84,20 +84,29 @@ const stripThink = (t) => t.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').replace
 
 /** Streamed chat. Returns the full text. */
 export async function chat({ system, messages, onText, signal, onProgress }) {
-  const e = await load(chosenModel(), onProgress);
+  const id = chosenModel();
+  const e = await load(id, onProgress);
+  if (signal?.aborted) throw Object.assign(new Error('Stopped'), { name: 'AbortError' });
   const onAbort = () => { try { e.interruptGenerate(); } catch { /* */ } };
   signal?.addEventListener('abort', onAbort, { once: true });
+  const reasoner = /DeepSeek-R1|Reasoning/i.test(id);
+  const qwen3 = /^Qwen3/i.test(id);
+  const msgs = messages.map((m) => ({ role: m.role, content: String(m.content) }));
+  // Qwen 3 thinks at length before answering; "/no_think" asks it to answer straight away
+  if (qwen3 && msgs.at(-1)?.role === 'user') msgs[msgs.length - 1] = { role: 'user', content: `${msgs.at(-1).content} /no_think` };
   try {
-    const stream = await e.chat.completions.create({ stream: true, temperature: store.get('settings.ai.temperature') ?? 0.7, max_tokens: 1024,
-      messages: [{ role: 'system', content: system }, ...messages.map((m) => ({ role: m.role, content: String(m.content) }))] });
+    const stream = await e.chat.completions.create({ stream: true, temperature: store.get('settings.ai.temperature') ?? 0.7, max_tokens: reasoner ? 3072 : 1536,
+      messages: [{ role: 'system', content: system }, ...msgs] });
     let out = '';
     for await (const c of stream) {
       out += c.choices?.[0]?.delta?.content || '';
       const visible = stripThink(out);
-      onText?.(visible || (/<think>/.test(out) ? '_Thinking…_' : ''));
+      if (visible) onText?.(visible); else if (/<think>/.test(out)) onText?.(`_Thinking… (${Math.round(out.length / 4)} words so far)_`);
     }
-    out = stripThink(out);
-    if (signal?.aborted) throw Object.assign(new Error('Stopped'), { name: 'AbortError', partial: out });
-    return out;
+    if (signal?.aborted) throw Object.assign(new Error('Stopped'), { name: 'AbortError', partial: stripThink(out) });
+    let answer = stripThink(out);
+    // Ran out of room while still thinking: show the reasoning rather than nothing
+    if (!answer && out.trim()) { answer = out.replace(/<\/?think>/g, '').trim(); answer = `${answer}\n\n_(The model ran out of room before writing a final answer — ask it to "give the final answer".)_`; onText?.(answer); }
+    return answer;
   } finally { signal?.removeEventListener('abort', onAbort); }
 }

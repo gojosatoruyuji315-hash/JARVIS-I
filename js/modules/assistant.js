@@ -67,11 +67,11 @@ export default {
       sendBtn.replaceChildren(icon('stop')); sendBtn.setAttribute('aria-label', 'Stop'); sendBtn.onclick = () => controller?.abort();
       const tts = speakReplies && voice.supported.tts ? voice.speakStream() : null;
       let lastNode;
-      const res = await ask(text, { signal: controller.signal, onChunk: (full) => {
+      const show = (full) => {
         if (!lastNode) { renderLog(); lastNode = log.lastElementChild?.querySelector('.md'); }
         if (lastNode) { lastNode.innerHTML = renderMarkdown(full); log.scrollTop = log.scrollHeight; }
-        tts?.push(full);
-      } });
+      };
+      const res = await ask(text, { signal: controller.signal, onStatus: show, onChunk: (full) => { show(full); tts?.push(full); } });
       tts?.end();
       controller = null; sendBtn.replaceChildren(icon('send')); sendBtn.setAttribute('aria-label', 'Send'); sendBtn.onclick = () => send();
       renderLog(); renderList(); renderStatus();
